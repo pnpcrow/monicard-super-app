@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="MoniCard Super — Android and Web companion for MoniCard hardware">
+  <meta name="theme-color" content="#080a10">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="MoniCard Super">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <title>MoniCard Super</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #080a10;
+      color: #f7f8fb;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+    }
+    #splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 32px;
+      background: #080a10;
+    }
+    #splash h1 {
+      margin: 0 0 8px;
+      font-size: 42px;
+      letter-spacing: -0.04em;
+    }
+    #splash p { color: #9da6b5; }
+    .mark {
+      width: 56px; height: 56px; border-radius: 14px;
+      background: #f3eb28; color: #12141a;
+      display: grid; place-items: center;
+      font-weight: 800; margin: 0 auto 18px;
+    }
+  </style>
+</head>
+<body>
+  <div id="splash">
+    <div>
+      <div class="mark">M</div>
+      <h1>MoniCard Super</h1>
+      <p>Android / Web companion</p>
+    </div>
+  </div>
+  <script>
+    function hideSplash() {
+      var splash = document.getElementById('splash');
+      if (splash) splash.remove();
+    }
+    window.addEventListener('flutter-first-frame', hideSplash);
+    setTimeout(hideSplash, 1800);
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

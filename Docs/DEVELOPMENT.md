@@ -21,7 +21,16 @@ Android application ID is `dev.monicard.super_app`. Do not change it without a P
 2. From the **repository root** (`monicard-super-app`), run `flutter pub get`. That writes `android/local.properties` and `.dart_tool/package_config.json`.
 3. Open the **Flutter project root**, not the `android/` folder, in Android Studio with the Flutter plugin.
 
-Android Studio의 `assembleDebug`는 `.dart_tool/package_config.json`이 없으면 먼저 `flutter pub get`을 돌립니다. 그래도 실패하면 저장소 루트에서 `flutter pub get`을 직접 한 뒤 다시 빌드하세요.
+Android Studio의 `assembleDebug`는 Flutter 프로젝트 루트에서 `flutter pub get`을 한 뒤에만 동작합니다. Gradle이 대신 실행하지 않습니다.
+
+```bat
+cd C:\Develop\Repositories\monicard-super-app
+flutter pub get
+flutter run -d android
+```
+
+`flutter run` / `flutter build apk` 가 Android Studio의 android 모듈 단독 빌드보다 안정적입니다.
+
 
 
 If Gradle still reports a missing `flutter.sdk`, Android Studio's Gradle daemon often cannot see PATH. Create `android/local.properties` with your real paths:

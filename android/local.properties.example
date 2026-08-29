@@ -1,0 +1,5 @@
+## Copy to local.properties, or just run `flutter pub get` from the repo root.
+## Do not commit local.properties — the SDK path is different on every machine.
+
+sdk.dir=C:\\Users\\YOU\\AppData\\Local\\Android\\Sdk
+flutter.sdk=C:\\src\\flutter

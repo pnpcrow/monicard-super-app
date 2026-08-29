@@ -13,6 +13,17 @@ flutter build web --release --base-href /
 
 Android application ID is `dev.monicard.super_app`. Do not change it without a Play/ sideload migration plan.
 
+## Android Studio
+
+`android/local.properties` is generated on each machine and is gitignored. Gradle needs `flutter.sdk` in that file.
+
+1. Install Flutter and put it on PATH (or set `FLUTTER_ROOT`).
+2. From the **repository root** (`monicard-super-app`), run `flutter pub get`. That writes `android/local.properties`.
+3. Open the **Flutter project root**, not the `android/` folder, in Android Studio with the Flutter plugin.
+
+If you still see `flutter.sdk not set in local.properties`, copy `android/local.properties.example` to `android/local.properties` and set `flutter.sdk` to your SDK path (for example `C:\\src\\flutter`).
+
+
 ## Design rules
 
 - Keep BLE transport independent from protocol construction.

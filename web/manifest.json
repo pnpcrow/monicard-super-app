@@ -8,6 +8,12 @@
     "description": "MoniCard companion for Android and Web",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "related_applications": [
+        {
+            "platform": "play",
+            "id": "dev.monicard.super_app"
+        }
+    ],
     "icons": [
         {
             "src": "icons/Icon-192.png",

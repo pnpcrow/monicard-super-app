@@ -55,4 +55,4 @@ OTA는 기기를 영구 정지시킬 수 있습니다. 서명·롤백·중단 �
 
 ## 라이선스
 
-앱 코드는 저장소 소유자의 비공개 동반 앱입니다. 직접 넣은 Flutter 패키지와, 참고만 한 원본 웹 문서·Web Bluetooth의 구분은 [`Docs/LICENSES.md`](Docs/LICENSES.md)를 보세요. 태그 ID는 하드웨어와 맞추기 위해 실립니다.
+앱 코드는 저장소 소유자의 비공개 동반 앱입니다. 직접 넣은 Flutter 패키지와, 참고만 한 원본 웹 문서·Web Bluetooth의 구분은 [`Docs/LICENSES.md`](Docs/LICENSES.md)를 보세요. 처음 사용 매뉴얼은 [`Docs/monicard-super-app-eli5-manual.pdf`](Docs/monicard-super-app-eli5-manual.pdf)입니다. 태그 ID는 하드웨어와 맞추기 위해 실립니다.

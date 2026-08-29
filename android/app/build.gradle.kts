@@ -15,6 +15,7 @@ android {
     }
 
     defaultConfig {
+        // Play / sideload identity. Do not rename without a migration plan.
         applicationId = "dev.monicard.super_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.

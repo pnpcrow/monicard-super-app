@@ -70,4 +70,25 @@ void main() {
     expect(card.width, kCardWidth);
     expect(card.height, kCardHeight);
   });
+
+  test('lower fps samples fewer frames', () {
+    final fast = sampleTimesMs(startMs: 0, endMs: 10000, fps: 20);
+    final slow = sampleTimesMs(startMs: 0, endMs: 10000, fps: 5);
+    expect(fast.length, 200);
+    expect(slow.length, 50);
+    expect(estimateMotionKb(durationMs: 10000, fps: 5) * 4, estimateMotionKb(durationMs: 10000, fps: 20));
+  });
+
+  test('timeline zoom keeps the clip in view', () {
+    final zoomed = zoomClipView(
+      viewStartMs: 0,
+      viewEndMs: 30000,
+      totalMs: 30000,
+      startMs: 0,
+      endMs: 10000,
+      factor: 0.5,
+    );
+    expect(zoomed.viewEndMs - zoomed.viewStartMs, lessThan(30000));
+    expect(zoomed.viewEndMs - zoomed.viewStartMs, greaterThanOrEqualTo(10000));
+  });
 }

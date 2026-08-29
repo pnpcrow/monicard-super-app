@@ -8,9 +8,13 @@ import 'mjpeg.dart';
 import 'motion_video.dart';
 
 const kMotionFps = 20;
+const kMotionFpsChoices = [5, 10, 15, 20];
 const kMaxMotionMs = 10000;
 const kMinMotionMs = 250;
+/// Matches original site `JPEG_QUALITY = 0.82`. MJPEG has no H.264 bitrate.
 const kJpegQuality = 82;
+/// Typical 240×320 JPEG at q=0.82. Used only for the size estimate chip.
+const kJpegBytesPerFrame = 11000;
 
 class MotionClip {
   const MotionClip({
@@ -217,6 +221,45 @@ List<int> sampleTimesMs({required int startMs, required int endMs, int fps = kMo
     final t = startMs + (i * 1000 / fps).round();
     return math.min(endMs - 1, t);
   });
+}
+
+int estimateMotionKb({required int durationMs, required int fps}) {
+  final frames = math.max(1, (durationMs / 1000 * fps).ceil());
+  return math.max(1, ((frames * kJpegBytesPerFrame) / 1024).round());
+}
+
+String formatMotionEstimate({required int durationMs, required int fps}) {
+  final frames = math.max(1, (durationMs / 1000 * fps).ceil());
+  final kb = estimateMotionKb(durationMs: durationMs, fps: fps);
+  final size = kb >= 1024 ? '${(kb / 1024).toStringAsFixed(1)} MB' : '$kb KB';
+  return '$size · ${frames}f';
+}
+
+({int viewStartMs, int viewEndMs}) zoomClipView({
+  required int viewStartMs,
+  required int viewEndMs,
+  required int totalMs,
+  required int startMs,
+  required int endMs,
+  required double factor,
+  int? aroundMs,
+}) {
+  final total = math.max(1, totalMs);
+  final clipDur = math.max(1, endMs - startMs);
+  var dur = (math.max(1, viewEndMs - viewStartMs) * factor).round();
+  var minDur = (clipDur * 1.2).round();
+  final padded = clipDur + 400;
+  if (minDur < padded) minDur = padded;
+  if (minDur > total) minDur = total;
+  if (minDur < clipDur) minDur = math.min(total, clipDur);
+  if (dur < minDur) dur = minDur;
+  if (dur > total) dur = total;
+  final center = aroundMs ?? ((viewStartMs + viewEndMs) ~/ 2);
+  var vs = center - dur ~/ 2;
+  if (vs < 0) vs = 0;
+  if (vs + dur > total) vs = total - dur;
+  if (vs < 0) vs = 0;
+  return (viewStartMs: vs, viewEndMs: vs + dur);
 }
 
 MotionResult muxJpegFrames(List<Uint8List> jpegs, MotionClip clip) {

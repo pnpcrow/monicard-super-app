@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -115,6 +116,10 @@ class _MotionCropEditorState extends State<MotionCropEditor> {
   bool grabbing = false;
   int progress = 0;
   int playheadMs = 0;
+  int fps = kMotionFps;
+  List<Uint8List> thumbs = [];
+  Timer? _thumbTimer;
+  int _thumbGen = 0;
 
   int get srcW => source.width;
   int get srcH => source.height;
@@ -138,6 +143,42 @@ class _MotionCropEditorState extends State<MotionCropEditor> {
     final view = clipViewWindow(startMs: startMs, endMs: endMs, totalMs: totalMs);
     viewStartMs = view.viewStartMs;
     viewEndMs = view.viewEndMs;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadThumbs());
+  }
+
+  @override
+  void dispose() {
+    _thumbTimer?.cancel();
+    super.dispose();
+  }
+
+  void _scheduleThumbs() {
+    _thumbTimer?.cancel();
+    _thumbTimer = Timer(const Duration(milliseconds: 160), _loadThumbs);
+  }
+
+  Future<void> _loadThumbs() async {
+    const n = 10;
+    final gen = ++_thumbGen;
+    final span = math.max(1, viewEndMs - viewStartMs);
+    final out = <Uint8List>[];
+    for (var i = 0; i < n; i++) {
+      final ms = (viewStartMs + ((i + 0.5) / n * span).round()).clamp(0, math.max(0, totalMs - 1)).toInt();
+      try {
+        if (widget.gif != null) {
+          final frame = widget.gif!.frameAt(ms);
+          final small = img.copyResize(frame, width: 48, height: 64);
+          out.add(Uint8List.fromList(img.encodeJpg(small, quality: 48)));
+        } else {
+          out.add(await extractPreviewFrame(widget.bytes, path: widget.path, mime: widget.mime, timeMs: ms));
+        }
+      } catch (_) {
+        break;
+      }
+      if (!mounted || gen != _thumbGen) return;
+    }
+    if (!mounted || gen != _thumbGen || out.isEmpty) return;
+    setState(() => thumbs = out);
   }
 
   void _reframe() {
@@ -158,7 +199,9 @@ class _MotionCropEditorState extends State<MotionCropEditor> {
       endMs = window.endMs;
       playheadMs = startMs;
       _reframe();
+      fps = kMotionFps;
     });
+    _scheduleThumbs();
   }
 
   void _onScaleStart(ScaleStartDetails details) {
@@ -282,7 +325,7 @@ class _MotionCropEditorState extends State<MotionCropEditor> {
       progress = 0;
     });
     try {
-      final clip = MotionClip(crop: crop, startMs: startMs, endMs: endMs);
+      final clip = MotionClip(crop: crop, startMs: startMs, endMs: endMs, fps: fps);
       final result = widget.gif != null
           ? prepareGifMotion(widget.gif!, clip, onProgress: (p) {
               if (mounted) setState(() => progress = p);
@@ -413,9 +456,92 @@ class _MotionCropEditorState extends State<MotionCropEditor> {
                         viewStartMs = vs;
                         viewEndMs = ve;
                       });
+                      _scheduleThumbs();
                     },
                     onDragEnd: () => _scrub(playheadMs),
+                    thumbs: thumbs,
                   ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: busy
+                            ? null
+                            : () {
+                                final next = zoomClipView(
+                                  viewStartMs: viewStartMs,
+                                  viewEndMs: viewEndMs,
+                                  totalMs: totalMs,
+                                  startMs: startMs,
+                                  endMs: endMs,
+                                  factor: 0.72,
+                                );
+                                setState(() {
+                                  viewStartMs = next.viewStartMs;
+                                  viewEndMs = next.viewEndMs;
+                                });
+                                _scheduleThumbs();
+                              },
+                        tooltip: s.t('motionZoomIn'),
+                        icon: const Icon(Icons.zoom_in, color: McColors.text),
+                      ),
+                      IconButton(
+                        onPressed: busy
+                            ? null
+                            : () {
+                                final next = zoomClipView(
+                                  viewStartMs: viewStartMs,
+                                  viewEndMs: viewEndMs,
+                                  totalMs: totalMs,
+                                  startMs: startMs,
+                                  endMs: endMs,
+                                  factor: 1.35,
+                                );
+                                setState(() {
+                                  viewStartMs = next.viewStartMs;
+                                  viewEndMs = next.viewEndMs;
+                                });
+                                _scheduleThumbs();
+                              },
+                        tooltip: s.t('motionZoomOut'),
+                        icon: const Icon(Icons.zoom_out, color: McColors.text),
+                      ),
+                      const Spacer(),
+                      Text(s.t('motionFps'), style: const TextStyle(color: McColors.muted, fontSize: 13)),
+                    ],
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      for (final value in kMotionFpsChoices)
+                        ChoiceChip(
+                          label: Text('$value FPS'),
+                          selected: fps == value,
+                          showCheckmark: false,
+                          onSelected: busy
+                              ? null
+                              : (_) => setState(() => fps = value),
+                          selectedColor: McColors.accent,
+                          labelStyle: TextStyle(
+                            color: fps == value ? McColors.onAccent : McColors.text,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                          backgroundColor: McColors.panel,
+                          side: BorderSide(color: fps == value ? McColors.accent : McColors.line),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    s.t('motionSize', {
+                      'size': formatMotionEstimate(durationMs: lengthMs, fps: fps),
+                    }),
+                    style: const TextStyle(color: McColors.muted, fontSize: 12, height: 1.35),
+                  ),
+                  Text(s.t('motionFpsHint'), style: const TextStyle(color: McColors.muted, fontSize: 12, height: 1.35)),
                   const SizedBox(height: 4),
                   Text(s.t('motionClipHint'), style: const TextStyle(color: McColors.muted, fontSize: 12, height: 1.35)),
                   SizedBox(

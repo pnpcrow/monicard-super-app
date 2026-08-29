@@ -12,7 +12,8 @@ This directory separates implementation guidance from protocol observations so f
 | [I18N.md](I18N.md) | Locale policy and translation workflow |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Setup, coding conventions, and release checklist |
 | [SECURITY.md](SECURITY.md) | Browser, API, BLE, and firmware safety considerations |
-| [TESTING.md](TESTING.md) | Test matrix and hardware verification plan |
+| [LICENSES.md](LICENSES.md) | Direct dependencies and referenced SDKs |
+| [monicard-super-app-eli5-manual.pdf](monicard-super-app-eli5-manual.pdf) | First-time user manual (ELI5) |
 
 ## Documentation rule
 

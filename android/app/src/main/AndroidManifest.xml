@@ -7,7 +7,7 @@
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true"/>
 
     <application
-        android:label="MoniCard Super"
+        android:label="MoniCard Super App"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

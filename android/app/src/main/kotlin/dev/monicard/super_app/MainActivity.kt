@@ -1,4 +1,4 @@
-package jp.azsoft.monicard_super_app
+package dev.monicard.super_app
 
 import io.flutter.embedding.android.FlutterActivity
 

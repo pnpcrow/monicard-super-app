@@ -1,8 +1,13 @@
-# MoniCard Super
+# MoniCard Super App
 
 Android / Web companion for [MoniCard](https://monicard-fullstack.azsoft-jp.workers.dev/) hardware.
 
+- Android application ID: `dev.monicard.super_app`
+- Dart package: `monicard_super_app`
+
 Flutter 한 코드베이스로 **Android 네이티브 BLE**와 **Chrome Web Bluetooth**를 같이 다룹니다. 프로토콜 빌더는 전송 계층과 분리되어 있고, FILE / OTA는 명시적 위험 고지 뒤에만 실행됩니다.
+
+처음 쓰는 사람을 위한 따라하기 매뉴얼은 [`Docs/monicard-super-app-eli5-manual.pdf`](Docs/monicard-super-app-eli5-manual.pdf) 입니다. 라이브러리·참고 SDK 라이선스는 [`Docs/LICENSES.md`](Docs/LICENSES.md) 입니다.
 
 ## 기능
 
@@ -50,4 +55,4 @@ OTA는 기기를 영구 정지시킬 수 있습니다. 서명·롤백·중단 �
 
 ## 라이선스
 
-Private companion for the repository owner. Bundled tag IDs exist for wire interoperability with MoniCard hardware.
+앱 코드는 저장소 소유자의 비공개 동반 앱입니다. 직접 넣은 Flutter 패키지와, 참고만 한 원본 웹 문서·Web Bluetooth의 구분은 [`Docs/LICENSES.md`](Docs/LICENSES.md)를 보세요. 태그 ID는 하드웨어와 맞추기 위해 실립니다.

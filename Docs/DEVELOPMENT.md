@@ -3,11 +3,15 @@
 ## Commands
 
 ```bash
-npm install
-npm start
-npm run dev
-npm test
+flutter pub get
+flutter test
+flutter run -d chrome
+flutter run -d android
+flutter build apk --release
+flutter build web --release --base-href /
 ```
+
+Android application ID is `dev.monicard.super_app`. Do not change it without a Play/ sideload migration plan.
 
 ## Design rules
 

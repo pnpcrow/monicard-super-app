@@ -283,9 +283,16 @@ Uint8List otaImageEnd({int imageId = 0, bool ok = true}) =>
 Uint8List otaTransmissionEnd() => otaMessage(OtaCommand.transmissionEnd, Uint8List.fromList([0]));
 Uint8List otaEndCommand() => otaMessage(OtaCommand.endCommand, Uint8List.fromList([0]));
 
-List<Uint8List> splitFrame(Uint8List bytes, {int mtu = 247}) {
-  final payloadSize = (mtu < 1 ? 247 : mtu) - 7;
+List<Uint8List> splitFrame(Uint8List bytes, {int mtu = 247, int maxWrite = 512}) {
+  var att = mtu < 23 ? 23 : mtu;
+  if (maxWrite > 0 && att - 3 > maxWrite) {
+    att = maxWrite + 3;
+  }
+  final payloadSize = att - 7;
   final totalPayloadLength = bytes.length < 4 ? 0 : bytes.length - 4;
+  if (payloadSize < 1) {
+    return [Uint8List.fromList(bytes)];
+  }
   if (bytes.length <= payloadSize) {
     final out = Uint8List.fromList(bytes);
     if (out.length >= 4) {
@@ -315,6 +322,13 @@ List<Uint8List> splitFrame(Uint8List bytes, {int mtu = 247}) {
     offset += size;
   }
   return result;
+}
+
+int bleWriteMtu(int attMtu, {bool withoutResponse = true, int maxWrite = 512}) {
+  final att = attMtu < 23 ? 23 : attMtu;
+  final payload = att - 3;
+  final cap = withoutResponse && payload > maxWrite ? maxWrite : payload;
+  return cap + 3;
 }
 
 class DecodedPacket {

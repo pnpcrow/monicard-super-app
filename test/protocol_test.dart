@@ -40,6 +40,18 @@ void main() {
     expect(readU16(chunks.first, 2), frameBytes.length - 4);
   });
 
+  test('splitFrame never exceeds Android writeWithoutResponse 512', () {
+    final payload = Uint8List(4000);
+    final frameBytes = frame(Category.file, concat([u16bytes(1), payload]));
+    final chunks = splitFrame(frameBytes, mtu: 517);
+    expect(chunks.length, greaterThan(1));
+    for (final chunk in chunks) {
+      expect(chunk.length, lessThanOrEqualTo(512));
+    }
+    expect(chunks.first.length, 512);
+    expect(bleWriteMtu(517, withoutResponse: true), 515);
+  });
+
   test('decodePacket reads command without inner length', () {
     final packet = Uint8List.fromList([0x1F, 0x00, 0x04, 0x00, 0x0F, 0x00, 0x41, 0x00]);
     final decoded = decodePacket(packet)!;

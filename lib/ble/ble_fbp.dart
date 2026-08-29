@@ -183,10 +183,20 @@ class FbpBle implements MoniCardBle {
       }
     });
     await device.connect(timeout: timeout, autoConnect: false);
+    var negotiated = 23;
     try {
-      if (!kIsWeb) await device.requestMtu(247);
-    } catch (_) {}
-    mtu = device.mtuNow > 20 ? device.mtuNow : 247;
+      if (!kIsWeb) {
+        negotiated = await device.requestMtu(512);
+      }
+    } catch (_) {
+      try {
+        if (!kIsWeb) negotiated = await device.requestMtu(247);
+      } catch (_) {
+        negotiated = device.mtuNow > 20 ? device.mtuNow : 23;
+      }
+    }
+    if (negotiated < 23) negotiated = device.mtuNow > 20 ? device.mtuNow : 23;
+    mtu = bleWriteMtu(negotiated, withoutResponse: true);
     final services = await device.discoverServices();
     BluetoothService? service;
     for (final s in services) {
@@ -209,6 +219,10 @@ class FbpBle implements MoniCardBle {
       throw StateError('MoniCard data characteristic was not found.');
     }
     _dataChar = dataChar;
+    mtu = bleWriteMtu(
+      device.mtuNow > 23 ? device.mtuNow : negotiated,
+      withoutResponse: dataChar.properties.writeWithoutResponse,
+    );
     await dataChar.setNotifyValue(true);
     _notifySub = dataChar.onValueReceived.listen((value) {
       _handleIncoming(Uint8List.fromList(value));

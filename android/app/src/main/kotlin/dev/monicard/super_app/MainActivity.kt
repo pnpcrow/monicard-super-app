@@ -8,6 +8,7 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
@@ -16,11 +17,23 @@ import java.util.concurrent.Executors
 class MainActivity : FlutterActivity() {
     private val channelName = "dev.monicard.super_app/video"
     private val io = Executors.newSingleThreadExecutor()
+    private var progressSink: EventChannel.EventSink? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
-            .setMethodCallHandler { call, result ->
+        val messenger = flutterEngine.dartExecutor.binaryMessenger
+        EventChannel(messenger, "$channelName/progress").setStreamHandler(
+            object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    progressSink = events
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    progressSink = null
+                }
+            },
+        )
+        MethodChannel(messenger, channelName).setMethodCallHandler { call, result ->
                 io.execute {
                     try {
                         when (call.method) {
@@ -154,7 +167,8 @@ class MainActivity : FlutterActivity() {
         val retriever = open(path)
         try {
             val out = ArrayList<ByteArray>(timesMs.size)
-            for (time in timesMs) {
+            val total = timesMs.size.coerceAtLeast(1)
+            for ((index, time) in timesMs.withIndex()) {
                 val bitmap = frameAt(retriever, time) ?: continue
                 try {
                     val card = cropToCard(bitmap, sx, sy, sw, sh)
@@ -166,6 +180,8 @@ class MainActivity : FlutterActivity() {
                 } finally {
                     bitmap.recycle()
                 }
+                val percent = 8 + ((index + 1) * 84 / total)
+                runOnUiThread { progressSink?.success(percent) }
             }
             if (out.isEmpty()) throw IllegalStateException("No frames")
             return out

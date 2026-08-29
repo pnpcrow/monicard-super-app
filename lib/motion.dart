@@ -273,13 +273,16 @@ MotionResult muxJpegFrames(List<Uint8List> jpegs, MotionClip clip) {
   );
 }
 
-MotionResult prepareGifMotion(GifSequence gif, MotionClip clip, {void Function(int progress)? onProgress}) {
+Future<MotionResult> prepareGifMotion(GifSequence gif, MotionClip clip, {void Function(int progress)? onProgress}) async {
   final window = clampClipWindow(startMs: clip.startMs, endMs: clip.endMs, totalMs: gif.totalMs);
   final times = sampleTimesMs(startMs: window.startMs, endMs: window.endMs, fps: clip.fps);
   final jpegs = <Uint8List>[];
   for (var i = 0; i < times.length; i++) {
     jpegs.add(jpegCardFrame(gif.frameAt(times[i]), clip.crop));
     onProgress?.call((((i + 1) / times.length) * 90).round());
+    if (i % 3 == 2) {
+      await Future<void>.delayed(Duration.zero);
+    }
   }
   return muxJpegFrames(jpegs, clip.copyWith(startMs: window.startMs, endMs: window.endMs));
 }

@@ -327,7 +327,7 @@ class _MotionCropEditorState extends State<MotionCropEditor> {
     try {
       final clip = MotionClip(crop: crop, startMs: startMs, endMs: endMs, fps: fps);
       final result = widget.gif != null
-          ? prepareGifMotion(widget.gif!, clip, onProgress: (p) {
+          ? await prepareGifMotion(widget.gif!, clip, onProgress: (p) {
               if (mounted) setState(() => progress = p);
             })
           : await prepareMotion(

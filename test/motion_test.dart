@@ -60,10 +60,10 @@ void main() {
     expect(view.viewEndMs - view.viewStartMs, greaterThan(10000));
   });
 
-  test('gif motion is 240×320 mjpeg', () {
+  test('gif motion is 240×320 mjpeg', () async {
     final gif = decodeGifSequence(_gif());
     expect(gif.frames.length, greaterThanOrEqualTo(2));
-    final result = prepareGifMotion(gif, const MotionClip(endMs: 200));
+    final result = await prepareGifMotion(gif, const MotionClip(endMs: 200));
     expect(ascii.decode(result.mp4.sublist(4, 8)), 'ftyp');
     expect(result.frames, greaterThan(0));
     final card = cropToCard(gif.frames.first, const StillCrop());

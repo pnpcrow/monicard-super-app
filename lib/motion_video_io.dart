@@ -1,5 +1,5 @@
+import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
 
@@ -17,6 +17,7 @@ class MotionVideoUnsupported implements Exception {
 }
 
 const _channel = MethodChannel('dev.monicard.super_app/video');
+const _progress = EventChannel('dev.monicard.super_app/video/progress');
 
 String? _cachedPath;
 int? _cachedLength;
@@ -108,19 +109,32 @@ Future<List<Uint8List>> extractCroppedJpegFrames(
 }) async {
   final filePath = await _ensurePath(bytes, path, mime);
   onProgress?.call(8);
-  final raw = await _invoke<List<Object?>>('frames', {
-    'path': filePath,
-    'timesMs': timesMs,
-    'sx': sx,
-    'sy': sy,
-    'sw': sw,
-    'sh': sh,
+  final sub = _progress.receiveBroadcastStream().listen((value) {
+    final parsed = value is int ? value : (value is num ? value.round() : null);
+    if (parsed == null) return;
+    final percent = parsed < 8 ? 8 : (parsed > 92 ? 92 : parsed);
+    onProgress?.call(percent);
   });
-  final jpegs = <Uint8List>[];
-  for (final item in raw) {
-    if (item is Uint8List) jpegs.add(item);
+  await Future<void>.delayed(Duration.zero);
+  try {
+    final raw = await _invoke<List<Object?>>('frames', {
+      'path': filePath,
+      'timesMs': timesMs,
+      'sx': sx,
+      'sy': sy,
+      'sw': sw,
+      'sh': sh,
+    });
+    final jpegs = <Uint8List>[];
+    for (final item in raw) {
+      if (item is Uint8List) {
+        jpegs.add(item);
+      }
+    }
+    if (jpegs.isEmpty) throw const MotionVideoUnsupported();
+    onProgress?.call(92);
+    return jpegs;
+  } finally {
+    await sub.cancel();
   }
-  if (jpegs.isEmpty) throw const MotionVideoUnsupported();
-  onProgress?.call(92);
-  return jpegs;
 }

@@ -18,8 +18,11 @@ Android application ID is `dev.monicard.super_app`. Do not change it without a P
 `android/local.properties` is generated on each machine and is gitignored. Gradle needs `flutter.sdk` in that file.
 
 1. Install Flutter and put it on PATH (or set `FLUTTER_ROOT`).
-2. From the **repository root** (`monicard-super-app`), run `flutter pub get`. That writes `android/local.properties`.
+2. From the **repository root** (`monicard-super-app`), run `flutter pub get`. That writes `android/local.properties` and `.dart_tool/package_config.json`.
 3. Open the **Flutter project root**, not the `android/` folder, in Android Studio with the Flutter plugin.
+
+Android Studio의 `assembleDebug`는 `.dart_tool/package_config.json`이 없으면 먼저 `flutter pub get`을 돌립니다. 그래도 실패하면 저장소 루트에서 `flutter pub get`을 직접 한 뒤 다시 빌드하세요.
+
 
 If Gradle still reports a missing `flutter.sdk`, Android Studio's Gradle daemon often cannot see PATH. Create `android/local.properties` with your real paths:
 

@@ -47,3 +47,44 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+val repoRoot = rootProject.projectDir.parentFile
+val localProperties = java.util.Properties()
+rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use {
+    localProperties.load(it)
+}
+val flutterSdkPath =
+    localProperties.getProperty("flutter.sdk")
+        ?: System.getenv("FLUTTER_ROOT")
+        ?: System.getenv("FLUTTER_SDK")
+val flutterCli =
+    if (flutterSdkPath.isNullOrBlank()) {
+        null
+    } else if (System.getProperty("os.name").lowercase().contains("win")) {
+        java.io.File(flutterSdkPath, "bin/flutter.bat")
+    } else {
+        java.io.File(flutterSdkPath, "bin/flutter")
+    }
+
+tasks.register<Exec>("ensureFlutterPubGet") {
+    group = "flutter"
+    description = "Runs flutter pub get when .dart_tool/package_config.json is missing"
+    workingDir = repoRoot
+    val cli = flutterCli
+    require(cli != null && cli.isFile) {
+        "flutter executable not found. Set flutter.sdk in android/local.properties, then sync."
+    }
+    commandLine(cli.absolutePath, "pub", "get")
+    onlyIf {
+        val packageConfig = java.io.File(repoRoot, ".dart_tool/package_config.json")
+        val lock = java.io.File(repoRoot, "pubspec.lock")
+        !packageConfig.exists() || (lock.exists() && packageConfig.lastModified() < lock.lastModified())
+    }
+}
+
+afterEvaluate {
+    tasks.matching { it.name.startsWith("compileFlutterBuild") }.configureEach {
+        dependsOn("ensureFlutterPubGet")
+    }
+}
+

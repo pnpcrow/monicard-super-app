@@ -20,6 +20,8 @@ class MotionVideoUnsupported implements Exception {
   String toString() => 'This video cannot be decoded here. Use a GIF, or open the web app in Chrome.';
 }
 
+Future<Uint8List?> loadPickedBytes(Uint8List? bytes, String? path) async => bytes;
+
 String _blobType(String mime) {
   if (mime.startsWith('video/')) return mime;
   if (mime == 'mp4' || mime == 'm4v') return 'video/mp4';
@@ -79,7 +81,12 @@ Future<VideoProbe> probeVideo(Uint8List bytes, {String? path, String mime = ''})
   }
 }
 
-Future<Uint8List> extractPreviewFrame(Uint8List bytes, {String mime = '', int timeMs = 0}) async {
+Future<Uint8List> extractPreviewFrame(
+  Uint8List bytes, {
+  String? path,
+  String mime = '',
+  int timeMs = 0,
+}) async {
   final video = await _loadVideo(bytes, mime);
   try {
     await _seek(video, timeMs / 1000);

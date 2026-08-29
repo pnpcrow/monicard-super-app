@@ -49,7 +49,7 @@ Future<MotionEditResult?> showMotionEditor(
       previewBytes = Uint8List.fromList(img.encodeJpg(gif.frames.first, quality: 88));
     } else {
       probe = await probeVideo(bytes, path: path, mime: mime);
-      previewBytes = await extractPreviewFrame(bytes, mime: mime, timeMs: 0);
+      previewBytes = await extractPreviewFrame(bytes, path: path, mime: mime, timeMs: 0);
     }
   } catch (error) {
     if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
@@ -231,7 +231,7 @@ class _MotionCropEditorState extends State<MotionCropEditor> {
       return;
     }
     try {
-      final frame = await extractPreviewFrame(widget.bytes, mime: widget.mime, timeMs: playheadMs);
+      final frame = await extractPreviewFrame(widget.bytes, path: widget.path, mime: widget.mime, timeMs: playheadMs);
       if (!mounted) return;
       setState(() {
         source = CropSource(original: widget.previewBytes, preview: frame, width: srcW, height: srcH);

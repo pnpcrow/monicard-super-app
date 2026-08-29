@@ -679,8 +679,9 @@ class _MediaPageState extends State<_MediaPage> {
     );
     if (!mounted) return;
     final file = result?.files.single;
-    final data = file?.bytes;
-    if (file == null || data == null) return;
+    if (file == null) return;
+    final data = await loadPickedBytes(file.bytes, file.path);
+    if (!mounted || data == null) return;
     final motionFile =
         widget.animation || looksLikeMotion(file.name, file.extension ?? '');
     try {

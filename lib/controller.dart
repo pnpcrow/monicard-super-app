@@ -151,7 +151,8 @@ class AppController extends ChangeNotifier {
   SharedPreferences? _prefs;
   TagCatalog? catalog;
 
-  String route = 'home';
+  final List<String> _stack = ['home'];
+  DateTime? _exitArmedAt;
   DeviceSnapshot? device;
   ControlSettings settings = ControlSettings();
   List<ReceivedCard> cards = [];
@@ -213,22 +214,57 @@ class AppController extends ChangeNotifier {
   }
 
   void go(String next) {
-    route = next;
+    if (next == 'home') {
+      _stack
+        ..clear()
+        ..add('home');
+      _exitArmedAt = null;
+      notifyListeners();
+      return;
+    }
+    if (next == route) return;
+    final existing = _stack.lastIndexOf(next);
+    if (existing >= 0) {
+      _stack.removeRange(existing + 1, _stack.length);
+    } else {
+      _stack.add(next);
+    }
+    _exitArmedAt = null;
     notifyListeners();
   }
 
-  bool get isHome => route == 'home';
+  String get route => _stack.last;
+
+  bool get isHome => _stack.length <= 1;
+
+  bool get inSettingsBranch =>
+      route == 'settings' || route == 'diagnostics' || route == 'docs';
 
   void back() {
-    if (route.startsWith('card-detail/')) {
-      go('received-cards');
-      return;
+    if (_stack.length > 1) {
+      _stack.removeLast();
+      _exitArmedAt = null;
+      notifyListeners();
     }
-    if (route == 'diagnostics' || route == 'docs') {
-      go('settings');
-      return;
+  }
+
+  /// Android system back. Returns true when the activity should close.
+  bool onSystemBack() {
+    if (!isHome) {
+      back();
+      return false;
     }
-    if (route != 'home') go('home');
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return false;
+    }
+    final now = DateTime.now();
+    if (_exitArmedAt != null && now.difference(_exitArmedAt!) <= const Duration(seconds: 2)) {
+      _exitArmedAt = null;
+      return true;
+    }
+    _exitArmedAt = now;
+    showToast(i18n.t('exitHint'));
+    return false;
   }
 
   String titleForRoute() {

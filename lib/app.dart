@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'brand.dart';
@@ -33,7 +34,15 @@ class MoniCardApp extends StatelessWidget {
             messenger?.showSnackBar(SnackBar(content: Text(msg)));
           }
         });
-        return Scaffold(
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            if (c.onSystemBack()) {
+              SystemNavigator.pop();
+            }
+          },
+          child: Scaffold(
           backgroundColor: McColors.bg,
           appBar: AppBar(
             backgroundColor: McColors.bg,
@@ -60,12 +69,9 @@ class MoniCardApp extends StatelessWidget {
               OneCircleButton(
                 icon: Icons.settings_outlined,
                 tooltip: c.i18n.t('openSettings'),
-                selected:
-                    c.route == 'settings' ||
-                    c.route == 'diagnostics' ||
-                    c.route == 'docs',
+                selected: c.inSettingsBranch,
                 onPressed: () =>
-                    c.route == 'settings' ? c.go('home') : c.go('settings'),
+                    c.inSettingsBranch ? c.back() : c.go('settings'),
               ),
               const SizedBox(width: 16),
             ],
@@ -77,6 +83,7 @@ class MoniCardApp extends StatelessWidget {
               child: _Router(controller: c),
             ),
           ),
+        ),
         );
       },
     );

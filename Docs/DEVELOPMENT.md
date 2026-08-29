@@ -21,7 +21,14 @@ Android application ID is `dev.monicard.super_app`. Do not change it without a P
 2. From the **repository root** (`monicard-super-app`), run `flutter pub get`. That writes `android/local.properties`.
 3. Open the **Flutter project root**, not the `android/` folder, in Android Studio with the Flutter plugin.
 
-If you still see `flutter.sdk not set in local.properties`, copy `android/local.properties.example` to `android/local.properties` and set `flutter.sdk` to your SDK path (for example `C:\\src\\flutter`).
+If Gradle still reports a missing `flutter.sdk`, Android Studio's Gradle daemon often cannot see PATH. Create `android/local.properties` with your real paths:
+
+```
+sdk.dir=C:\\Users\\YOU\\AppData\\Local\\Android\\Sdk
+flutter.sdk=C:\\src\\flutter
+```
+
+`where flutter` on Windows prints the `flutter.bat` path. The SDK is two folders above that file. After saving, sync Gradle again. The settings script also searches PATH, FVM, and common install folders and writes `local.properties` when it finds one.
 
 
 ## Design rules

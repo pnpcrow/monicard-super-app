@@ -17,6 +17,7 @@ npm test
 - Keep unsupported or unsafe features visibly disabled rather than simulated.
 - Update documentation with every feature or protocol change.
 - Avoid framework dependencies unless they remove more complexity than they add.
+- Still images are cropped in-app to 240×320 (pan + zoom). Do not use an Android crop Intent; Web must share the same editor.
 
 ## API endpoints
 

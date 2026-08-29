@@ -48,42 +48,130 @@ class FbpBle implements MoniCardBle {
   }
 
   @override
-  Future<void> connect() async {
+  Future<void> connect({String? knownId, bool picker = false, bool auto = false}) async {
     await _ensurePermissions();
-    if (await FlutterBluePlus.isSupported == false) {
-      throw StateError('Bluetooth is not supported in this environment.');
-    }
     if (!kIsWeb) {
+      if (await FlutterBluePlus.isSupported == false) {
+        throw const BleUnavailable();
+      }
       await FlutterBluePlus.adapterState.where((s) => s == BluetoothAdapterState.on).first.timeout(
             const Duration(seconds: 8),
             onTimeout: () => throw StateError('Turn Bluetooth on and try again.'),
           );
     }
-    await FlutterBluePlus.startScan(
-      timeout: const Duration(seconds: 15),
-      withServices: [Guid(Uuids.service), Guid(reverseUuid(Uuids.service))],
-      androidUsesFineLocation: false,
-    );
+
+    final timeout = auto ? const Duration(seconds: 6) : const Duration(seconds: 12);
+
+    if (!picker && knownId != null && knownId.isNotEmpty) {
+      final found = await _scanForSaved(knownId, timeout);
+      if (found != null) {
+        await _bind(found, timeout: timeout);
+        return;
+      }
+      if (auto) {
+        throw StateError('Saved device is not available');
+      }
+    }
+
+    if (auto) {
+      throw StateError('Saved device is not available');
+    }
+
+    final selected = await _scanForAny(timeout);
+    if (selected == null) {
+      throw StateError('No nearby MoniCard was found.');
+    }
+    await _bind(selected, timeout: timeout);
+  }
+
+  Future<BluetoothDevice?> _scanForSaved(String knownId, Duration timeout) async {
     BluetoothDevice? found;
-    await for (final results in FlutterBluePlus.scanResults) {
+    final done = Completer<void>();
+    final sub = FlutterBluePlus.scanResults.listen((results) {
+      for (final r in results) {
+        final id = r.device.remoteId.str;
+        final name = r.device.platformName.toLowerCase();
+        final adv = r.advertisementData.advName.toLowerCase();
+        if (id == knownId || name.contains('monicard') || adv.contains('monicard')) {
+          if (id == knownId || found == null) found = r.device;
+          if (id == knownId && !done.isCompleted) done.complete();
+        }
+      }
+    });
+    try {
+      await FlutterBluePlus.startScan(
+        timeout: timeout,
+        withKeywords: const ['MoniCard', 'MONICARD', 'monicard'],
+        androidUsesFineLocation: false,
+      );
+      await Future.any([
+        done.future,
+        FlutterBluePlus.isScanning.where((scanning) => !scanning).first,
+        Future<void>.delayed(timeout),
+      ]);
+    } catch (error) {
+      await FlutterBluePlus.stopScan();
+      if (_unavailable(error)) throw const BleUnavailable();
+      rethrow;
+    } finally {
+      await sub.cancel();
+      await FlutterBluePlus.stopScan();
+    }
+    return found;
+  }
+
+  Future<BluetoothDevice?> _scanForAny(Duration timeout) async {
+    BluetoothDevice? found;
+    final done = Completer<void>();
+    final sub = FlutterBluePlus.scanResults.listen((results) {
       for (final r in results) {
         final name = r.device.platformName.toLowerCase();
         final adv = r.advertisementData.advName.toLowerCase();
-        if (name.contains('monicard') || adv.contains('monicard') || kIsWeb) {
+        if (name.contains('monicard') || adv.contains('monicard')) {
           found = r.device;
+          if (!done.isCompleted) done.complete();
           break;
         }
       }
-      if (found != null) break;
+    });
+    try {
+      await FlutterBluePlus.startScan(
+        timeout: timeout,
+        withKeywords: const ['MoniCard', 'MONICARD', 'monicard'],
+        androidUsesFineLocation: false,
+      );
+      await Future.any([
+        done.future,
+        FlutterBluePlus.isScanning.where((scanning) => !scanning).first,
+        Future<void>.delayed(timeout + const Duration(seconds: 1)),
+      ]);
+    } catch (error) {
+      await FlutterBluePlus.stopScan();
+      if (_unavailable(error)) throw const BleUnavailable();
+      rethrow;
+    } finally {
+      await sub.cancel();
+      await FlutterBluePlus.stopScan();
     }
-    await FlutterBluePlus.stopScan();
-    if (found == null) {
-      throw StateError('No nearby MoniCard was found.');
-    }
-    await _bind(found);
+    return found;
   }
 
-  Future<void> _bind(BluetoothDevice device) async {
+  bool _unavailable(Object error) {
+    final t = error.toString().toLowerCase();
+    if (t.contains('notfound') || t.contains('abort') || t.contains('cancel')) {
+      return false;
+    }
+    return t.contains('not supported') ||
+        t.contains('not available') ||
+        t.contains('undefined') ||
+        t.contains('securityerror') ||
+        t.contains('permissions policy') ||
+        t.contains('typeerror') ||
+        t.contains('javascripterror') ||
+        t.contains('illegal invocation');
+  }
+
+  Future<void> _bind(BluetoothDevice device, {Duration timeout = const Duration(seconds: 15)}) async {
     _clear();
     _device = device;
     deviceId = device.remoteId.str;
@@ -94,7 +182,7 @@ class FbpBle implements MoniCardBle {
         onDisconnect?.call();
       }
     });
-    await device.connect(timeout: const Duration(seconds: 15));
+    await device.connect(timeout: timeout, autoConnect: false);
     try {
       if (!kIsWeb) await device.requestMtu(247);
     } catch (_) {}

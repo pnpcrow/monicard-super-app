@@ -1,12 +1,18 @@
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'brand.dart';
 import 'controller.dart';
+import 'crop_editor.dart';
 import 'l10n.dart';
 import 'media.dart';
+import 'motion.dart';
+import 'motion_editor.dart';
+import 'motion_video.dart';
 import 'protocol.dart' hide FileType;
 import 'tags.dart';
 import 'theme.dart';
@@ -28,132 +34,51 @@ class MoniCardApp extends StatelessWidget {
           }
         });
         return Scaffold(
-          body: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, box) {
-                final wide = box.maxWidth >= 840;
-                return Row(
-                  children: [
-                    if (wide) _Sidebar(controller: c),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          _Topbar(controller: c, compact: !wide),
-                          Expanded(child: _Router(controller: c)),
-                        ],
+          backgroundColor: McColors.bg,
+          appBar: AppBar(
+            backgroundColor: McColors.bg,
+            surfaceTintColor: Colors.transparent,
+            toolbarHeight: 56,
+            leadingWidth: 64,
+            leading: Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: c.isHome
+                    ? const BrandMark(size: 36)
+                    : OneCircleButton(
+                        icon: Icons.arrow_back,
+                        tooltip: c.i18n.t('back'),
+                        onPressed: c.back,
                       ),
-                    ),
-                  ],
-                );
-              },
+              ),
             ),
+            title: const SizedBox.shrink(),
+            actions: [
+              _ConnectionChip(controller: c),
+              const SizedBox(width: 6),
+              OneCircleButton(
+                icon: Icons.settings_outlined,
+                tooltip: c.i18n.t('openSettings'),
+                selected:
+                    c.route == 'settings' ||
+                    c.route == 'diagnostics' ||
+                    c.route == 'docs',
+                onPressed: () =>
+                    c.route == 'settings' ? c.go('home') : c.go('settings'),
+              ),
+              const SizedBox(width: 16),
+            ],
           ),
-          bottomNavigationBar: LayoutBuilder(
-            builder: (context, box) {
-              if (box.maxWidth >= 840) return const SizedBox.shrink();
-              return _MobileNav(controller: c);
-            },
+          body: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: _Router(controller: c),
+            ),
           ),
         );
       },
-    );
-  }
-}
-
-class _Sidebar extends StatelessWidget {
-  const _Sidebar({required this.controller});
-  final AppController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 250,
-      decoration: const BoxDecoration(
-        color: Color(0xFF0B0E14),
-        border: Border(right: BorderSide(color: McColors.line)),
-      ),
-      padding: const EdgeInsets.fromLTRB(18, 24, 18, 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _Brand(),
-          const SizedBox(height: 28),
-          _NavButtons(controller: controller, vertical: true),
-          const Spacer(),
-          _LocaleField(controller: controller),
-        ],
-      ),
-    );
-  }
-}
-
-class _Brand extends StatelessWidget {
-  const _Brand({this.compact = false});
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: compact ? 36 : 44,
-          height: compact ? 36 : 44,
-          decoration: BoxDecoration(
-            color: McColors.accent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(Icons.badge_outlined, color: McColors.ink),
-        ),
-        const SizedBox(width: 12),
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('MoniCard', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.4)),
-              Text('Super', style: TextStyle(color: McColors.muted, fontSize: 12)),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _Topbar extends StatelessWidget {
-  const _Topbar({required this.controller, required this.compact});
-  final AppController controller;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    final d = controller.device;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-      child: Row(
-        children: [
-          if (compact) const Expanded(child: _Brand(compact: true)) else const Spacer(),
-          if (d != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF10141C),
-                border: Border.all(color: McColors.line),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                children: [
-                  _Dot(online: controller.ble.connected),
-                  const SizedBox(width: 8),
-                  Text(d.name, style: const TextStyle(color: McColors.muted, fontSize: 13)),
-                ],
-              ),
-            ),
-          if (compact) ...[
-            const SizedBox(width: 8),
-            SizedBox(width: 120, child: _LocaleField(controller: controller, compact: true)),
-          ],
-        ],
-      ),
     );
   }
 }
@@ -164,32 +89,259 @@ class _Dot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 10,
-      height: 10,
+      width: 8,
+      height: 8,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: online ? McColors.ok : const Color(0xFF697080),
-        boxShadow: online ? const [BoxShadow(color: McColors.ok, blurRadius: 10)] : null,
+        color: online ? McColors.ok : const Color(0xFF636366),
       ),
     );
   }
 }
 
-class _LocaleField extends StatelessWidget {
-  const _LocaleField({required this.controller, this.compact = false});
+class _ConnectionChip extends StatelessWidget {
+  const _ConnectionChip({required this.controller});
   final AppController controller;
-  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = controller.device;
+    final online = controller.ble.connected;
+    final connecting = controller.connecting;
+    final label = connecting
+        ? controller.i18n.t('reconnecting')
+        : d == null
+        ? controller.i18n.t('notConnected')
+        : (online ? d.name : controller.i18n.t('savedOffline'));
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Material(
+        color: McColors.panel,
+        shape: const StadiumBorder(),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: connecting
+                  ? null
+                  : () async {
+                      if (!online && controller.hasSavedDevice) {
+                        if (kIsWeb) {
+                          await controller.connect(scan: true);
+                          return;
+                        }
+                        final ok = await controller.connect(scan: false);
+                        if (!ok &&
+                            context.mounted &&
+                            controller.hasSavedDevice &&
+                            !controller.lastConnectCancelled) {
+                          await showReconnectFailedDialog(context, controller);
+                        }
+                        return;
+                      }
+                      showConnectSheet(context, controller);
+                    },
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    connecting
+                        ? const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 1.6),
+                          )
+                        : _Dot(online: online),
+                    const SizedBox(width: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 112),
+                      child: Text(
+                        label,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: McColors.text,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => showConnectSheet(context, controller),
+              child: const Padding(
+                padding: EdgeInsets.fromLTRB(2, 8, 8, 8),
+                child: Icon(Icons.expand_more, size: 18, color: McColors.muted),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> showReconnectFailedDialog(BuildContext host, AppController c) {
+  final s = c.i18n;
+  return showDialog<void>(
+    context: host,
+    builder: (context) {
+      return AlertDialog(
+        backgroundColor: McColors.panel,
+        title: Text(s.t('reconnectFailedTitle')),
+        content: Text(
+          s.t('reconnectFailedBody', {'name': c.device?.name ?? 'MoniCard'}),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              showConnectSheet(host, c);
+            },
+            child: Text(s.t('cancel')),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              c.forgetAndScan();
+            },
+            child: Text(s.t('forgetAndScan')),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Future<void> showConnectSheet(BuildContext context, AppController c) {
+  final s = c.i18n;
+  final d = c.device;
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: McColors.bg,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    builder: (context) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 10, 8, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: McColors.panel2,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
+                child: Text(
+                  s.t('connectionMenu'),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+              ),
+              OneGroup(
+                children: [
+                  if (d != null)
+                    OneRow(
+                      icon: Icons.badge_outlined,
+                      color: McTint.device,
+                      title: d.name,
+                      subtitle: [
+                        c.connecting
+                            ? s.t('reconnecting')
+                            : c.ble.connected
+                            ? s.t('connected')
+                            : s.t('savedOffline'),
+                        if (d.battery != null)
+                          '${s.t('battery')} ${d.battery}%',
+                        d.firmwareVersion,
+                      ].whereType<String>().join(' · '),
+                      trailing: _Dot(online: c.ble.connected),
+                    ),
+                  OneRow(
+                    icon: Icons.bluetooth_searching,
+                    color: McTint.display,
+                    title: s.t('startScan'),
+                    onTap: c.connecting
+                        ? null
+                        : () {
+                            Navigator.pop(context);
+                            c.connect(scan: true);
+                          },
+                  ),
+                  if (c.ble.connected)
+                    OneRow(
+                      icon: Icons.link_off,
+                      color: McTint.advanced,
+                      title: s.t('disconnectAction'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        c.disconnect();
+                      },
+                    ),
+                  OneRow(
+                    icon: Icons.visibility_outlined,
+                    color: McTint.identity,
+                    title: s.t('previewContinue'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      c.enterPreview();
+                    },
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                child: Text(
+                  s.t('browserNotice'),
+                  style: const TextStyle(
+                    color: McColors.muted,
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _LocaleField extends StatelessWidget {
+  const _LocaleField({required this.controller});
+  final AppController controller;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (!compact)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(controller.i18n.t('language'), style: const TextStyle(color: McColors.muted, fontSize: 12)),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            controller.i18n.t('language'),
+            style: const TextStyle(color: McColors.muted, fontSize: 12),
           ),
+        ),
         DropdownButton<String>(
           value: controller.i18n.locale,
           isExpanded: true,
@@ -207,54 +359,6 @@ class _LocaleField extends StatelessWidget {
   }
 }
 
-class _NavButtons extends StatelessWidget {
-  const _NavButtons({required this.controller, required this.vertical});
-  final AppController controller;
-  final bool vertical;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget item(String route, String label) {
-      final on = route == 'settings'
-          ? controller.route == 'settings' || controller.route == 'diagnostics' || controller.route == 'docs'
-          : controller.route != 'settings' && controller.route != 'diagnostics' && controller.route != 'docs';
-      return TextButton(
-        onPressed: () => controller.go(route),
-        style: TextButton.styleFrom(
-          alignment: vertical ? Alignment.centerLeft : Alignment.center,
-          foregroundColor: on ? McColors.accent : McColors.muted,
-          backgroundColor: on ? McColors.panel2 : Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        ),
-        child: Text(label),
-      );
-    }
-
-    final children = [
-      item('home', controller.i18n.t('devices')),
-      item('settings', controller.i18n.t('settings')),
-    ];
-    if (vertical) return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children);
-    return Row(children: [for (final c in children) Expanded(child: c)]);
-  }
-}
-
-class _MobileNav extends StatelessWidget {
-  const _MobileNav({required this.controller});
-  final AppController controller;
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xEE0B0E14),
-        border: Border(top: BorderSide(color: McColors.line)),
-      ),
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      child: _NavButtons(controller: controller, vertical: false),
-    );
-  }
-}
-
 class _Router extends StatelessWidget {
   const _Router({required this.controller});
   final AppController controller;
@@ -263,7 +367,10 @@ class _Router extends StatelessWidget {
   Widget build(BuildContext context) {
     final route = controller.route;
     if (route.startsWith('card-detail/')) {
-      return _CardDetail(controller: controller, index: int.tryParse(route.split('/').last) ?? -1);
+      return _CardDetail(
+        controller: controller,
+        index: int.tryParse(route.split('/').last) ?? -1,
+      );
     }
     switch (route) {
       case 'media-image':
@@ -299,7 +406,11 @@ class _Router extends StatelessWidget {
 }
 
 class _Page extends StatelessWidget {
-  const _Page({required this.controller, required this.title, required this.child});
+  const _Page({
+    required this.controller,
+    required this.title,
+    required this.child,
+  });
   final AppController controller;
   final String title;
   final Widget child;
@@ -307,19 +418,9 @@ class _Page extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton(
-            onPressed: () => controller.go('home'),
-            child: Text('← ${controller.i18n.t('back')}', style: const TextStyle(color: McColors.text)),
-          ),
-        ),
-        Text(title, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: -1.2, height: 1.05)),
-        const SizedBox(height: 16),
-        child,
-      ],
+      key: ValueKey('${controller.route}-$title'),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+      children: [OneUiTitle(title), const SizedBox(height: 8), child],
     );
   }
 }
@@ -334,22 +435,21 @@ class McCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final body = Container(
       width: double.infinity,
-      padding: padding ?? const EdgeInsets.all(18),
+      padding: padding ?? const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF171B25), Color(0xFF10131A)],
-        ),
-        border: Border.all(color: McColors.line),
-        borderRadius: BorderRadius.circular(20),
+        color: McColors.panel,
+        borderRadius: BorderRadius.circular(26),
       ),
       child: child,
     );
     if (onTap == null) return body;
     return Material(
       color: Colors.transparent,
-      child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(20), child: body),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(26),
+        child: body,
+      ),
     );
   }
 }
@@ -362,96 +462,189 @@ class _HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = controller.i18n;
     final d = controller.device;
-    final features = <(String, String, String, IconData)>[
-      ('image', s.t('imageDesc'), 'media-image', Icons.image_outlined),
-      ('animation', s.t('animationDesc'), 'media-animation', Icons.animation),
-      ('carousel', s.t('carouselDesc'), 'carousel', Icons.view_carousel_outlined),
-      ('profile', s.t('profileDesc'), 'card', Icons.badge_outlined),
-      ('tags', s.t('tagsDesc'), 'tags', Icons.sell_outlined),
-      ('deviceControl', s.t('deviceControlDesc'), 'device-settings', Icons.tune),
-      ('receivedCards', s.t('receivedCardsDesc'), 'received-cards', Icons.mail_outlined),
-      ('deviceInfo', s.t('deviceInfoDesc'), 'device-info', Icons.info_outline),
-      ('fileTransfer', s.t('fileTransferDesc'), 'file-transfer', Icons.swap_vert),
-      ('otaUpdate', s.t('otaUpdateDesc'), 'ota-update', Icons.system_update_alt),
-    ];
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 40),
-      children: [
-        Text(s.t('safeMode').toUpperCase(), style: const TextStyle(color: McColors.accent, letterSpacing: 2, fontSize: 11, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 10),
-        Text(d == null ? s.t('connectTitle') : s.t('connectedTitle'), style: const TextStyle(fontSize: 42, fontWeight: FontWeight.w800, letterSpacing: -1.6, height: 1.02)),
-        const SizedBox(height: 10),
-        Text(d == null ? s.t('connectDesc') : s.t('connectedDesc'), style: const TextStyle(color: McColors.muted, height: 1.5)),
-        const SizedBox(height: 8),
-        Text(s.t('demoNotice'), style: const TextStyle(color: McColors.muted, height: 1.45, fontSize: 13)),
-        const SizedBox(height: 18),
-        if (d == null)
-          McCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return HoloBackdrop(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
+        children: [
+          OneUiTitle(
+            controller.ble.connected
+                ? (d?.name ?? s.t('passName'))
+                : s.t('passName'),
+            subtitle: controller.ble.connected
+                ? [
+                    s.t('connected'),
+                    if (d?.battery != null) '${d!.battery}%',
+                    d?.firmwareVersion,
+                  ].whereType<String>().join('  ·  ')
+                : s.t('slogan'),
+          ),
+          DeviceHero(online: controller.ble.connected),
+          const SizedBox(height: 8),
+          if (controller.previewDevice) ...[
+            const SizedBox(height: 8),
+            OneGroup(
               children: [
-                Text(s.t('addDevice'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 12),
-                ElevatedButton(onPressed: controller.connect, child: Text(s.t('startScan'))),
-                const SizedBox(height: 12),
-                Text(s.t('browserNotice'), style: const TextStyle(color: McColors.muted, height: 1.45)),
-              ],
-            ),
-          )
-        else ...[
-          McCard(
-            child: Row(
-              children: [
-                _Dot(online: controller.ble.connected),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(d.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                      Text(
-                        '${controller.ble.connected ? s.t('connected') : s.t('savedOffline')} · ${d.firmwareVersion ?? s.t('unknownVersion')}',
-                        style: const TextStyle(color: McColors.muted, fontSize: 13),
-                      ),
-                    ],
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+                  child: Text(
+                    s.t('previewBanner'),
+                    style: const TextStyle(
+                      height: 1.45,
+                      color: McColors.muted,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
-                OutlinedButton(onPressed: controller.connect, child: Text(s.t('reconnect'))),
               ],
             ),
-          ),
+          ],
           const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, box) {
-              final cols = box.maxWidth >= 900 ? 3 : (box.maxWidth >= 560 ? 2 : 1);
-              return GridView.count(
-                crossAxisCount: cols,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.35,
-                children: [
-                  for (final f in features)
-                    McCard(
-                      onTap: () => controller.go(f.$3),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(f.$4, color: McColors.accent, size: 28),
-                          const Spacer(),
-                          Text(s.t(f.$1), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 6),
-                          Text(f.$2, style: const TextStyle(color: McColors.muted, fontSize: 13, height: 1.35)),
-                        ],
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
+          if (d == null)
+            OneGroup(
+              children: [
+                OneRow(
+                  icon: Icons.bluetooth_searching,
+                  color: McTint.display,
+                  title: s.t('startScan'),
+                  subtitle: s.t('tapToConnect'),
+                  onTap: () => showConnectSheet(context, controller),
+                ),
+                OneRow(
+                  icon: Icons.visibility_outlined,
+                  color: McTint.identity,
+                  title: s.t('previewContinue'),
+                  onTap: controller.enterPreview,
+                ),
+              ],
+            )
+          else ...[
+            _SectionLabel(s.t('sectionDisplay')),
+            OneGroup(
+              children: [
+                OneRow(
+                  icon: Icons.image_outlined,
+                  color: McTint.display,
+                  title: s.t('image'),
+                  subtitle: s.t('imageDesc'),
+                  onTap: () => controller.go('media-image'),
+                ),
+                OneRow(
+                  icon: Icons.animation,
+                  color: McTint.display,
+                  title: s.t('animation'),
+                  subtitle: s.t('animationDesc'),
+                  onTap: () => controller.go('media-animation'),
+                ),
+                OneRow(
+                  icon: Icons.view_carousel_outlined,
+                  color: McTint.display,
+                  title: s.t('carousel'),
+                  subtitle: s.t('carouselDesc'),
+                  onTap: () => controller.go('carousel'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _SectionLabel(s.t('sectionIdentity')),
+            OneGroup(
+              children: [
+                OneRow(
+                  icon: Icons.badge_outlined,
+                  color: McTint.identity,
+                  title: s.t('profile'),
+                  subtitle: s.t('profileDesc'),
+                  onTap: () => controller.go('card'),
+                ),
+                OneRow(
+                  icon: Icons.sell_outlined,
+                  color: McTint.identity,
+                  title: s.t('tags'),
+                  subtitle: s.t('tagsDesc'),
+                  onTap: () => controller.go('tags'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _SectionLabel(s.t('sectionInbox')),
+            OneGroup(
+              children: [
+                OneRow(
+                  icon: Icons.mail_outlined,
+                  color: McTint.inbox,
+                  title: s.t('receivedCards'),
+                  subtitle: controller.cards.isEmpty
+                      ? s.t('receivedCardsDesc')
+                      : '${controller.cards.length}',
+                  onTap: () => controller.go('received-cards'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _SectionLabel(s.t('sectionDevice')),
+            OneGroup(
+              children: [
+                OneRow(
+                  icon: Icons.tune,
+                  color: McTint.device,
+                  title: s.t('deviceControl'),
+                  subtitle: s.t('deviceControlDesc'),
+                  onTap: () => controller.go('device-settings'),
+                ),
+                OneRow(
+                  icon: Icons.info_outline,
+                  color: McTint.device,
+                  title: s.t('deviceInfo'),
+                  subtitle: [
+                    if (d.battery != null) '${s.t('battery')} ${d.battery}%',
+                    if (d.storage != null) d.storage,
+                    s.t('deviceInfoDesc'),
+                  ].join(' · '),
+                  onTap: () => controller.go('device-info'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _SectionLabel(s.t('sectionAdvanced')),
+            OneGroup(
+              children: [
+                OneRow(
+                  icon: Icons.swap_vert,
+                  color: McTint.advanced,
+                  title: s.t('fileTransfer'),
+                  subtitle: s.t('fileTransferDesc'),
+                  onTap: () => controller.go('file-transfer'),
+                ),
+                OneRow(
+                  icon: Icons.system_update_alt,
+                  color: McTint.advanced,
+                  title: s.t('otaUpdate'),
+                  subtitle: s.t('otaUpdateDesc'),
+                  onTap: () => controller.go('ota-update'),
+                ),
+              ],
+            ),
+          ],
         ],
-      ],
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 0, 8, 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: McColors.muted,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
     );
   }
 }
@@ -466,28 +659,127 @@ class _MediaPage extends StatefulWidget {
 
 class _MediaPageState extends State<_MediaPage> {
   Uint8List? bytes;
+  Uint8List? cropped;
   String name = '';
   String mime = '';
-  double zoom = 1;
+  StillCrop crop = const StillCrop();
+  MotionClip motion = const MotionClip();
   String status = '';
   double progress = 0;
   Uint8List? preview;
+  String? path;
 
   Future<void> _pick() async {
     final result = await FilePicker.platform.pickFiles(
       withData: true,
       type: widget.animation ? FileType.custom : FileType.image,
-      allowedExtensions: widget.animation ? const ['gif', 'mp4', 'mov', 'm4v', 'webm'] : null,
+      allowedExtensions: widget.animation
+          ? const ['gif', 'mp4', 'mov', 'm4v', 'webm']
+          : null,
     );
+    if (!mounted) return;
     final file = result?.files.single;
-    if (file?.bytes == null) return;
-    setState(() {
-      bytes = file!.bytes;
-      name = file.name;
-      mime = file.extension ?? '';
-      preview = looksLikeMotion(file.name, mime) ? null : file.bytes;
-      status = '${file.name} · ${((file.size) / 1024).round()} KB';
-    });
+    final data = file?.bytes;
+    if (file == null || data == null) return;
+    final motionFile =
+        widget.animation || looksLikeMotion(file.name, file.extension ?? '');
+    try {
+      if (motionFile) {
+        final edited = await showMotionEditor(
+          context,
+          bytes: data,
+          name: file.name,
+          mime: file.extension ?? '',
+          path: file.path,
+          i18n: widget.controller.i18n,
+        );
+        if (edited == null || !mounted) return;
+        setState(() {
+          bytes = data;
+          cropped = edited.mp4;
+          crop = edited.clip.crop;
+          motion = edited.clip;
+          name = file.name;
+          mime = file.extension ?? '';
+          path = file.path;
+          preview = edited.preview;
+          status =
+              '${file.name} · 240×320 · ${edited.frames}f · ${(edited.mp4.length / 1024).round()} KB';
+        });
+        return;
+      }
+      final edited = await showStillCropEditor(
+        context,
+        bytes: data,
+        i18n: widget.controller.i18n,
+      );
+      if (edited == null || !mounted) return;
+      setState(() {
+        bytes = data;
+        cropped = edited.png;
+        crop = edited.crop;
+        name = file.name;
+        mime = file.extension ?? '';
+        path = file.path;
+        preview = edited.png;
+        status =
+            '${file.name} · 240×320 · ${(edited.png.length / 1024).round()} KB';
+      });
+    } on MotionVideoUnsupported {
+      widget.controller.showToast(
+        widget.controller.i18n.t('motionUnsupported'),
+      );
+    } catch (e) {
+      widget.controller.showToast(widget.controller.i18n.t('decodeError'));
+    }
+  }
+
+  Future<void> _editCrop() async {
+    final source = bytes;
+    final c = widget.controller;
+    if (source == null) {
+      c.showToast(c.i18n.t('chooseFirst'));
+      return;
+    }
+    try {
+      if (widget.animation || looksLikeMotion(name, mime)) {
+        final edited = await showMotionEditor(
+          context,
+          bytes: source,
+          name: name,
+          mime: mime,
+          path: path,
+          i18n: c.i18n,
+        );
+        if (edited == null || !mounted) return;
+        setState(() {
+          cropped = edited.mp4;
+          crop = edited.clip.crop;
+          motion = edited.clip;
+          preview = edited.preview;
+          status =
+              '$name · 240×320 · ${edited.frames}f · ${(edited.mp4.length / 1024).round()} KB';
+        });
+        return;
+      }
+      final edited = await showStillCropEditor(
+        context,
+        bytes: source,
+        i18n: c.i18n,
+        initial: crop,
+      );
+      if (edited == null || !mounted) return;
+      setState(() {
+        cropped = edited.png;
+        crop = edited.crop;
+        preview = edited.png;
+        status = '$name · 240×320 · ${(edited.png.length / 1024).round()} KB';
+      });
+    } on MotionVideoUnsupported {
+      c.showToast(c.i18n.t('motionUnsupported'));
+    } catch (e) {
+      c.showToast(c.i18n.t('decodeError'));
+    }
   }
 
   Future<void> _send() async {
@@ -501,14 +793,33 @@ class _MediaPageState extends State<_MediaPage> {
       c.showToast(c.i18n.t('needConnect'));
       return;
     }
-    final motion = widget.animation || looksLikeMotion(name, mime);
+    final isMotion = widget.animation || looksLikeMotion(name, mime);
     try {
       setState(() => status = c.i18n.t('converting'));
-      Uint8List payload = source;
-      if (!motion) payload = prepareStill(source, zoom: zoom);
-      final ok = await showRiskDialog(context, c, kind: 'FILE', fileName: name, bytes: payload.length);
+      Uint8List payload;
+      if (isMotion) {
+        payload =
+            cropped ??
+            (await prepareMotion(
+              source,
+              name: name,
+              mime: mime,
+              path: path,
+              clip: motion,
+            )).mp4;
+      } else {
+        payload = cropped ?? prepareStill(source, crop: crop);
+      }
+      if (!mounted) return;
+      final ok = await showRiskDialog(
+        context,
+        c,
+        kind: 'FILE',
+        fileName: name,
+        bytes: payload.length,
+      );
       if (!ok || !mounted) return;
-      final deviceName = deviceResourceName(motion: motion);
+      final deviceName = deviceResourceName(motion: isMotion);
       final result = await c.transfer.sendFile(
         payload,
         name: deviceName,
@@ -519,8 +830,15 @@ class _MediaPageState extends State<_MediaPage> {
       );
       setState(() {
         progress = 1;
-        status = c.i18n.t('done', {'bytes': '${result.bytes}', 'packets': '${result.packets}', 'crc': result.crc32hex});
+        status = c.i18n.t('done', {
+          'bytes': '${result.bytes}',
+          'packets': '${result.packets}',
+          'crc': result.crc32hex,
+        });
       });
+    } on MotionVideoUnsupported {
+      setState(() => status = c.i18n.t('motionUnsupported'));
+      c.showToast(c.i18n.t('motionUnsupported'));
     } catch (e) {
       setState(() => status = e.toString());
       c.showToast(e.toString());
@@ -543,31 +861,51 @@ class _MediaPageState extends State<_MediaPage> {
                 height: 320,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF090C11),
-                  border: Border.all(color: const Color(0xFF3D4655), style: BorderStyle.solid),
-                  borderRadius: BorderRadius.circular(16),
+                  color: const Color(0xFF1C1C1E),
+                  borderRadius: BorderRadius.circular(22),
                 ),
                 child: preview == null
-                    ? Text(c.i18n.t('noMedia'), style: const TextStyle(color: McColors.muted))
+                    ? Text(
+                        c.i18n.t('noMedia'),
+                        style: const TextStyle(color: McColors.muted),
+                      )
                     : ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Transform.scale(
-                          scale: zoom,
-                          child: Image.memory(preview!, width: 240, height: 320, fit: BoxFit.cover),
+                        borderRadius: BorderRadius.circular(22),
+                        child: Image.memory(
+                          preview!,
+                          width: 240,
+                          height: 320,
+                          fit: BoxFit.cover,
+                          gaplessPlayback: true,
                         ),
                       ),
               ),
             ),
-            const SizedBox(height: 14),
-            ElevatedButton(onPressed: _pick, child: Text(c.i18n.t(widget.animation ? 'chooseAnimation' : 'chooseImage'))),
-            if (!widget.animation) ...[
-              const SizedBox(height: 12),
-              Text(c.i18n.t('zoom'), style: const TextStyle(color: McColors.muted)),
-              Slider(value: zoom, min: 1, max: 3, onChanged: (v) => setState(() => zoom = v)),
-            ],
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ElevatedButton(
+                  onPressed: _pick,
+                  child: Text(
+                    c.i18n.t(
+                      widget.animation ? 'chooseAnimation' : 'chooseImage',
+                    ),
+                  ),
+                ),
+                OutlinedButton(
+                  onPressed: _editCrop,
+                  child: Text(
+                    c.i18n.t(widget.animation ? 'motionTitle' : 'cropEdit'),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
+              runSpacing: 8,
               children: [
                 OutlinedButton(
                   onPressed: () {
@@ -575,15 +913,28 @@ class _MediaPageState extends State<_MediaPage> {
                       c.showToast(c.i18n.t('chooseFirst'));
                       return;
                     }
-                    setState(() => status = '$name · ${(bytes!.length / 1024).round()} KB');
+                    final ready = cropped ?? bytes!;
+                    setState(
+                      () => status =
+                          '$name · ${(ready.length / 1024).round()} KB',
+                    );
                   },
                   child: Text(c.i18n.t('inspectMedia')),
                 ),
-                ElevatedButton(onPressed: _send, child: Text(c.i18n.t(widget.animation ? 'sendMotion' : 'sendStill'))),
+                ElevatedButton(
+                  onPressed: _send,
+                  child: Text(
+                    c.i18n.t(widget.animation ? 'sendMotion' : 'sendStill'),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            LinearProgressIndicator(value: progress, color: McColors.accent, backgroundColor: McColors.panel2),
+            LinearProgressIndicator(
+              value: progress,
+              color: McColors.accent,
+              backgroundColor: McColors.panel2,
+            ),
             const SizedBox(height: 8),
             Text(status, style: const TextStyle(color: McColors.muted)),
           ],
@@ -635,9 +986,13 @@ class _ControlPage extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                OutlinedButton(onPressed: () => controller.refreshRuntime(), child: Text(s.t('readSettings'))),
+                OutlinedButton(
+                  onPressed: () => controller.refreshRuntime(),
+                  child: Text(s.t('readSettings')),
+                ),
                 ElevatedButton(
-                  onPressed: () => _guard(context, controller, controller.writeSettings),
+                  onPressed: () =>
+                      _guard(context, controller, controller.writeSettings),
                   child: Text(s.t('writeSettings')),
                 ),
               ],
@@ -676,9 +1031,16 @@ class _ProfilePage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            OutlinedButton(onPressed: () => _guard(context, controller, controller.readProfile), child: Text(s.t('readSettings'))),
+            OutlinedButton(
+              onPressed: () =>
+                  _guard(context, controller, controller.readProfile),
+              child: Text(s.t('readSettings')),
+            ),
             const SizedBox(height: 12),
-            Text(s.t('profileContent'), style: const TextStyle(color: McColors.muted)),
+            Text(
+              s.t('profileContent'),
+              style: const TextStyle(color: McColors.muted),
+            ),
             const SizedBox(height: 6),
             TextFormField(
               initialValue: controller.profile,
@@ -687,9 +1049,20 @@ class _ProfilePage extends StatelessWidget {
               onChanged: controller.updateProfile,
             ),
             const SizedBox(height: 6),
-            Text('$count / ${Limits.cardBytes} bytes', style: TextStyle(color: count > Limits.cardBytes ? McColors.danger : McColors.muted)),
+            Text(
+              '$count / ${Limits.cardBytes} bytes',
+              style: TextStyle(
+                color: count > Limits.cardBytes
+                    ? McColors.danger
+                    : McColors.muted,
+              ),
+            ),
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: () => _guard(context, controller, controller.saveProfile), child: Text(s.t('saveSync'))),
+            ElevatedButton(
+              onPressed: () =>
+                  _guard(context, controller, controller.saveProfile),
+              child: Text(s.t('saveSync')),
+            ),
           ],
         ),
       ),
@@ -714,16 +1087,26 @@ class _TagsPageState extends State<_TagsPage> {
     final cats = c.catalog?.categories(s.locale) ?? const <TagCategory>[];
     TagCategory? current;
     if (cats.isNotEmpty) {
-      current = cats.firstWhere((e) => e.id == c.tagCategoryId, orElse: () => cats.first);
+      current = cats.firstWhere(
+        (e) => e.id == c.tagCategoryId,
+        orElse: () => cats.first,
+      );
     }
-    final matches = query.trim().isEmpty ? const <TagItem>[] : (c.catalog?.search(query, s.locale) ?? const <TagItem>[]);
+    final matches = query.trim().isEmpty
+        ? const <TagItem>[]
+        : (c.catalog?.search(query, s.locale) ?? const <TagItem>[]);
     Widget chip(TagItem tag) {
       final on = c.selectedTags.any((t) => t.key == tag.key);
       return FilterChip(
         selected: on,
-        label: Text(tag.official ? tag.label : '${tag.label} · ${s.t('unofficial')}'),
+        label: Text(
+          tag.official ? tag.label : '${tag.label} · ${s.t('unofficial')}',
+        ),
         selectedColor: McColors.accent,
-        labelStyle: TextStyle(color: on ? McColors.ink : McColors.text, fontSize: 13),
+        labelStyle: TextStyle(
+          color: on ? McColors.ink : McColors.text,
+          fontSize: 13,
+        ),
         backgroundColor: McColors.panel2,
         onSelected: (_) => c.toggleTag(tag.ref),
       );
@@ -736,11 +1119,19 @@ class _TagsPageState extends State<_TagsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(s.t('tagPolicy'), style: const TextStyle(color: Color(0xFFFFF7A7), height: 1.45)),
+            Text(
+              s.t('tagPolicy'),
+              style: const TextStyle(color: Color(0xFFFFF7A7), height: 1.45),
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: Text('${s.t('selected')} ${c.selectedTags.length} / ${Limits.tags}', style: const TextStyle(fontWeight: FontWeight.w700))),
+                Expanded(
+                  child: Text(
+                    '${s.t('selected')} ${c.selectedTags.length} / ${Limits.tags}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
                 TextButton(
                   onPressed: c.clearSelectedTags,
                   child: Text(s.t('clearTags')),
@@ -751,8 +1142,21 @@ class _TagsPageState extends State<_TagsPage> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                if (c.selectedTags.isEmpty) Text(s.t('noTags'), style: const TextStyle(color: McColors.muted)),
-                for (final ref in c.selectedTags) chip(c.catalog?.find(ref.category, ref.tagId, s.locale) ?? TagItem(category: ref.category, tagId: ref.tagId, label: ref.key, official: false)),
+                if (c.selectedTags.isEmpty)
+                  Text(
+                    s.t('noTags'),
+                    style: const TextStyle(color: McColors.muted),
+                  ),
+                for (final ref in c.selectedTags)
+                  chip(
+                    c.catalog?.find(ref.category, ref.tagId, s.locale) ??
+                        TagItem(
+                          category: ref.category,
+                          tagId: ref.tagId,
+                          label: ref.key,
+                          official: false,
+                        ),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -762,7 +1166,11 @@ class _TagsPageState extends State<_TagsPage> {
             ),
             if (matches.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Wrap(spacing: 8, runSpacing: 8, children: [for (final t in matches) chip(t)]),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [for (final t in matches) chip(t)],
+              ),
             ],
             const SizedBox(height: 16),
             Wrap(
@@ -772,17 +1180,31 @@ class _TagsPageState extends State<_TagsPage> {
                 for (final cat in cats)
                   ChoiceChip(
                     selected: cat.id == current?.id,
-                    label: Text('${cat.label} ${cat.tags.length}${cat.official ? '' : ' · ${s.t('unofficial')}'}'),
+                    label: Text(
+                      '${cat.label} ${cat.tags.length}${cat.official ? '' : ' · ${s.t('unofficial')}'}',
+                    ),
                     selectedColor: McColors.accent,
-                    labelStyle: TextStyle(color: cat.id == current?.id ? McColors.ink : McColors.text),
+                    labelStyle: TextStyle(
+                      color: cat.id == current?.id
+                          ? McColors.ink
+                          : McColors.text,
+                    ),
                     onSelected: (_) => c.setTagCategory(cat.id),
                   ),
               ],
             ),
             const SizedBox(height: 12),
-            if (current != null) Wrap(spacing: 8, runSpacing: 8, children: [for (final t in current.tags) chip(t)]),
+            if (current != null)
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [for (final t in current.tags) chip(t)],
+              ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: () => _guard(context, c, c.saveTags), child: Text(s.t('saveTags'))),
+            ElevatedButton(
+              onPressed: () => _guard(context, c, c.saveTags),
+              child: Text(s.t('saveTags')),
+            ),
           ],
         ),
       ),
@@ -805,7 +1227,9 @@ class _CarouselPageState extends State<_CarouselPage> {
   @override
   void initState() {
     super.initState();
-    seconds = TextEditingController(text: '${widget.controller.settings.carouselSeconds}');
+    seconds = TextEditingController(
+      text: '${widget.controller.settings.carouselSeconds}',
+    );
   }
 
   @override
@@ -820,7 +1244,11 @@ class _CarouselPageState extends State<_CarouselPage> {
       c.showToast(c.i18n.t('needConnect'));
       return;
     }
-    final result = await FilePicker.platform.pickFiles(withData: true, allowMultiple: true, type: FileType.media);
+    final result = await FilePicker.platform.pickFiles(
+      withData: true,
+      allowMultiple: true,
+      type: FileType.media,
+    );
     final files = result?.files.where((f) => f.bytes != null).toList() ?? [];
     if (files.isEmpty) {
       c.showToast(c.i18n.t('chooseFirst'));
@@ -832,17 +1260,41 @@ class _CarouselPageState extends State<_CarouselPage> {
         final file = files[i];
         setState(() => status = '${i + 1}/${files.length} ${file.name}');
         final motion = looksLikeMotion(file.name, file.extension ?? '');
-        final payload = motion ? file.bytes! : prepareStill(file.bytes!);
-        final ok = await showRiskDialog(context, c, kind: 'FILE', fileName: file.name, bytes: payload.length);
+        Uint8List payload;
+        if (motion) {
+          payload = (await prepareMotion(
+            file.bytes!,
+            name: file.name,
+            mime: file.extension ?? '',
+            path: file.path,
+          )).mp4;
+        } else {
+          payload = prepareStill(file.bytes!);
+        }
+        if (!mounted) return;
+        final ok = await showRiskDialog(
+          context,
+          c,
+          kind: 'FILE',
+          fileName: file.name,
+          bytes: payload.length,
+        );
         if (!ok || !mounted) return;
         await c.transfer.sendFile(
           payload,
           name: deviceResourceName(motion: motion),
-          onProgress: (p) => setState(() => progress = (i + p / 100) / files.length),
+          onProgress: (p) =>
+              setState(() => progress = (i + p / 100) / files.length),
         );
       }
       await c.writeCarousel(secs.clamp(1, 60));
-      setState(() => status = c.i18n.t('done', {'bytes': '${files.length}', 'packets': '$secs', 'crc': 'ok'}));
+      setState(
+        () => status = c.i18n.t('done', {
+          'bytes': '${files.length}',
+          'packets': '$secs',
+          'crc': 'ok',
+        }),
+      );
     } catch (e) {
       setState(() => status = e.toString());
     }
@@ -863,7 +1315,10 @@ class _CarouselPageState extends State<_CarouselPage> {
               children: [
                 OutlinedButton(
                   onPressed: () => _guard(context, c, () async {
-                    final res = await c.request(readCarousel(), ControlCommand.respCarouselRd);
+                    final res = await c.request(
+                      readCarousel(),
+                      ControlCommand.respCarouselRd,
+                    );
                     c.settings.carouselSeconds = readU16(res.data, 0);
                     c.settings.carousel = c.settings.carouselSeconds > 0;
                     seconds.text = '${c.settings.carouselSeconds}';
@@ -881,14 +1336,24 @@ class _CarouselPageState extends State<_CarouselPage> {
               ],
             ),
             const SizedBox(height: 12),
-            Text(c.i18n.t('carouselInterval'), style: const TextStyle(color: McColors.muted)),
+            Text(
+              c.i18n.t('carouselInterval'),
+              style: const TextStyle(color: McColors.muted),
+            ),
             TextField(controller: seconds, keyboardType: TextInputType.number),
             const SizedBox(height: 12),
-            LinearProgressIndicator(value: progress == 0 ? null : progress, color: McColors.accent, backgroundColor: McColors.panel2),
+            LinearProgressIndicator(
+              value: progress == 0 ? null : progress,
+              color: McColors.accent,
+              backgroundColor: McColors.panel2,
+            ),
             const SizedBox(height: 8),
             Text(status, style: const TextStyle(color: McColors.muted)),
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: _send, child: Text(c.i18n.t('enableCarousel'))),
+            ElevatedButton(
+              onPressed: _send,
+              child: Text(c.i18n.t('enableCarousel')),
+            ),
           ],
         ),
       ),
@@ -911,14 +1376,23 @@ class _CardsPage extends StatelessWidget {
           children: [
             ElevatedButton(
               onPressed: () => _guard(context, controller, () async {
-                await controller.ble.send(control(ControlCommand.readCardsCount));
-                controller.showToast(controller.i18n.t('commandSent', {'label': s.t('receivedCards')}));
+                await controller.ble.send(
+                  control(ControlCommand.readCardsCount),
+                );
+                controller.showToast(
+                  controller.i18n.t('commandSent', {
+                    'label': s.t('receivedCards'),
+                  }),
+                );
               }),
               child: Text(s.t('readCardCount')),
             ),
             const SizedBox(height: 12),
             if (controller.cards.isEmpty)
-              Text(s.t('noCachedCards'), style: const TextStyle(color: McColors.muted))
+              Text(
+                s.t('noCachedCards'),
+                style: const TextStyle(color: McColors.muted),
+              )
             else
               for (var i = 0; i < controller.cards.length; i++)
                 ListTile(
@@ -943,7 +1417,11 @@ class _CardDetail extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = controller.i18n;
     if (index < 0 || index >= controller.cards.length) {
-      return _Page(controller: controller, title: s.t('cardDetails'), child: Text(s.t('notFound')));
+      return _Page(
+        controller: controller,
+        title: s.t('cardDetails'),
+        child: Text(s.t('notFound')),
+      );
     }
     final card = controller.cards[index];
     return _Page(
@@ -953,14 +1431,23 @@ class _CardDetail extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(card.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+            Text(
+              card.title,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 8),
             Text(card.detail),
             const SizedBox(height: 8),
-            Text(card.receivedAt, style: const TextStyle(color: McColors.muted)),
+            Text(
+              card.receivedAt,
+              style: const TextStyle(color: McColors.muted),
+            ),
             const SizedBox(height: 16),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF5B2029), foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5B2029),
+                foregroundColor: Colors.white,
+              ),
               onPressed: () {
                 controller.cards.removeAt(index);
                 controller.persist();
@@ -990,7 +1477,12 @@ class _DeviceInfoPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(s.t('deviceName'), style: const TextStyle(color: McColors.muted)),
+            const ProductPair(),
+            const SizedBox(height: 16),
+            Text(
+              s.t('deviceName'),
+              style: const TextStyle(color: McColors.muted),
+            ),
             TextFormField(
               initialValue: d?.name ?? '',
               onChanged: (v) {
@@ -1011,7 +1503,10 @@ class _DeviceInfoPage extends StatelessWidget {
             _kv(s.t('battery'), d?.battery == null ? '--' : '${d!.battery}%'),
             _kv(s.t('fileSystem'), d?.storage ?? '--'),
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: () => controller.refreshRuntime(), child: Text(s.t('refreshDevice'))),
+            ElevatedButton(
+              onPressed: () => controller.refreshRuntime(),
+              child: Text(s.t('refreshDevice')),
+            ),
           ],
         ),
       ),
@@ -1023,7 +1518,9 @@ class _DeviceInfoPage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Expanded(child: Text(k, style: const TextStyle(color: McColors.muted))),
+          Expanded(
+            child: Text(k, style: const TextStyle(color: McColors.muted)),
+          ),
           Text(v, style: const TextStyle(fontWeight: FontWeight.w600)),
         ],
       ),
@@ -1059,13 +1556,23 @@ class _FilePageState extends State<_FilePage> {
             ElevatedButton(
               onPressed: () async {
                 final r = await FilePicker.platform.pickFiles(withData: true);
-                if (r?.files.single.bytes != null) setState(() => file = r!.files.single);
+                if (r?.files.single.bytes != null)
+                  setState(() => file = r!.files.single);
               },
               child: Text(c.i18n.t('chooseImage')),
             ),
-            if (file != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text('${file!.name} · ${((file!.size) / 1024).round()} KB')),
+            if (file != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  '${file!.name} · ${((file!.size) / 1024).round()} KB',
+                ),
+              ),
             const SizedBox(height: 12),
-            Text(c.i18n.t('fileType'), style: const TextStyle(color: McColors.muted)),
+            Text(
+              c.i18n.t('fileType'),
+              style: const TextStyle(color: McColors.muted),
+            ),
             DropdownButton<int>(
               value: fileType,
               dropdownColor: McColors.panel,
@@ -1077,7 +1584,11 @@ class _FilePageState extends State<_FilePage> {
               ],
               onChanged: (v) => setState(() => fileType = v ?? 1),
             ),
-            LinearProgressIndicator(value: progress == 0 ? 0 : progress, color: McColors.accent, backgroundColor: McColors.panel2),
+            LinearProgressIndicator(
+              value: progress == 0 ? 0 : progress,
+              color: McColors.accent,
+              backgroundColor: McColors.panel2,
+            ),
             Text(status, style: const TextStyle(color: McColors.muted)),
             const SizedBox(height: 12),
             Wrap(
@@ -1093,7 +1604,13 @@ class _FilePageState extends State<_FilePage> {
                       c.showToast(c.i18n.t('needConnect'));
                       return;
                     }
-                    final ok = await showRiskDialog(context, c, kind: 'FILE', fileName: file!.name, bytes: file!.bytes!.length);
+                    final ok = await showRiskDialog(
+                      context,
+                      c,
+                      kind: 'FILE',
+                      fileName: file!.name,
+                      bytes: file!.bytes!.length,
+                    );
                     if (!ok) return;
                     try {
                       final result = await c.transfer.sendFile(
@@ -1105,14 +1622,23 @@ class _FilePageState extends State<_FilePage> {
                           status = c.i18n.t('sending', {'p': '$p'});
                         }),
                       );
-                      setState(() => status = c.i18n.t('done', {'bytes': '${result.bytes}', 'packets': '${result.packets}', 'crc': result.crc32hex}));
+                      setState(
+                        () => status = c.i18n.t('done', {
+                          'bytes': '${result.bytes}',
+                          'packets': '${result.packets}',
+                          'crc': result.crc32hex,
+                        }),
+                      );
                     } catch (e) {
                       setState(() => status = e.toString());
                     }
                   },
                   child: Text(c.i18n.t('startTransfer')),
                 ),
-                OutlinedButton(onPressed: c.transfer.abort, child: Text(c.i18n.t('abort'))),
+                OutlinedButton(
+                  onPressed: c.transfer.abort,
+                  child: Text(c.i18n.t('abort')),
+                ),
               ],
             ),
           ],
@@ -1154,26 +1680,41 @@ class _OtaPageState extends State<_OtaPage> {
             ElevatedButton(
               onPressed: () async {
                 final r = await FilePicker.platform.pickFiles(withData: true);
-                if (r?.files.single.bytes != null) setState(() => file = r!.files.single);
+                if (r?.files.single.bytes != null)
+                  setState(() => file = r!.files.single);
               },
               child: Text(c.i18n.t('firmwareImage')),
             ),
-            if (file != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(file!.name)),
+            if (file != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(file!.name),
+              ),
             const SizedBox(height: 8),
-            Text(c.i18n.t('imageId'), style: const TextStyle(color: McColors.muted)),
+            Text(
+              c.i18n.t('imageId'),
+              style: const TextStyle(color: McColors.muted),
+            ),
             TextField(
               keyboardType: TextInputType.number,
               onChanged: (v) => imageId = int.tryParse(v) ?? 0,
             ),
             const SizedBox(height: 12),
-            LinearProgressIndicator(value: progress == 0 ? 0 : progress, color: McColors.danger, backgroundColor: McColors.panel2),
+            LinearProgressIndicator(
+              value: progress == 0 ? 0 : progress,
+              color: McColors.danger,
+              backgroundColor: McColors.panel2,
+            ),
             Text(status, style: const TextStyle(color: McColors.muted)),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               children: [
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF5B2029), foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF5B2029),
+                    foregroundColor: Colors.white,
+                  ),
                   onPressed: () async {
                     if (file?.bytes == null) {
                       c.showToast(c.i18n.t('chooseFirst'));
@@ -1183,7 +1724,13 @@ class _OtaPageState extends State<_OtaPage> {
                       c.showToast(c.i18n.t('needConnect'));
                       return;
                     }
-                    final ok = await showRiskDialog(context, c, kind: 'OTA', fileName: file!.name, bytes: file!.bytes!.length);
+                    final ok = await showRiskDialog(
+                      context,
+                      c,
+                      kind: 'OTA',
+                      fileName: file!.name,
+                      bytes: file!.bytes!.length,
+                    );
                     if (!ok) return;
                     try {
                       final result = await c.transfer.sendOta(
@@ -1194,14 +1741,23 @@ class _OtaPageState extends State<_OtaPage> {
                           status = c.i18n.t('sending', {'p': '$p'});
                         }),
                       );
-                      setState(() => status = c.i18n.t('done', {'bytes': '${result.bytes}', 'packets': '${result.packets}', 'crc': result.crc32hex}));
+                      setState(
+                        () => status = c.i18n.t('done', {
+                          'bytes': '${result.bytes}',
+                          'packets': '${result.packets}',
+                          'crc': result.crc32hex,
+                        }),
+                      );
                     } catch (e) {
                       setState(() => status = e.toString());
                     }
                   },
                   child: Text(c.i18n.t('startOta')),
                 ),
-                OutlinedButton(onPressed: c.transfer.abort, child: Text(c.i18n.t('abort'))),
+                OutlinedButton(
+                  onPressed: c.transfer.abort,
+                  child: Text(c.i18n.t('abort')),
+                ),
               ],
             ),
           ],
@@ -1219,50 +1775,49 @@ class _SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = controller.i18n;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
       children: [
-        Text(s.t('appSettings'), style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, letterSpacing: -1.4)),
-        const SizedBox(height: 16),
-        McCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(s.t('language'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              _LocaleField(controller: controller),
-            ],
-          ),
+        OneUiTitle(s.t('appSettings')),
+        const SizedBox(height: 8),
+        OneGroup(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
+              child: _LocaleField(controller: controller),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
-        McCard(
-          onTap: () => controller.go('diagnostics'),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(s.t('diagnostics'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-              Text(s.t('advanced'), style: const TextStyle(color: McColors.muted)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        McCard(
-          onTap: () => controller.go('docs'),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(s.t('documentation'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-              Text(s.t('docsIntro'), style: const TextStyle(color: McColors.muted)),
-            ],
-          ),
+        const SizedBox(height: 20),
+        OneGroup(
+          children: [
+            OneRow(
+              icon: Icons.monitor_heart_outlined,
+              color: McTint.device,
+              title: s.t('diagnostics'),
+              subtitle: s.t('advanced'),
+              onTap: () => controller.go('diagnostics'),
+            ),
+            OneRow(
+              icon: Icons.menu_book_outlined,
+              color: McTint.identity,
+              title: s.t('documentation'),
+              subtitle: s.t('docsIntro'),
+              onTap: () => controller.go('docs'),
+            ),
+          ],
         ),
         if (controller.device != null) ...[
-          const SizedBox(height: 12),
-          McCard(
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF5B2029), foregroundColor: Colors.white),
-              onPressed: controller.forget,
-              child: Text(s.t('forgetDevice')),
-            ),
+          const SizedBox(height: 20),
+          OneGroup(
+            children: [
+              OneRow(
+                icon: Icons.delete_outline,
+                color: McColors.danger,
+                title: s.t('forgetDevice'),
+                onTap: controller.forget,
+                trailing: const SizedBox.shrink(),
+              ),
+            ],
           ),
         ],
       ],
@@ -1288,24 +1843,36 @@ class _DiagnosticsPage extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                ElevatedButton(onPressed: controller.connect, child: Text(s.t('diagConnect'))),
+                ElevatedButton(
+                  onPressed: controller.connect,
+                  child: Text(s.t('diagConnect')),
+                ),
                 OutlinedButton(
                   onPressed: () => _guard(context, controller, () async {
-                    final r = await controller.request(getVersion(), ControlCommand.respVersion);
+                    final r = await controller.request(
+                      getVersion(),
+                      ControlCommand.respVersion,
+                    );
                     controller.showToast(decodeText(r.data));
                   }),
                   child: Text(s.t('sendVersion')),
                 ),
                 OutlinedButton(
                   onPressed: () => _guard(context, controller, () async {
-                    final r = await controller.request(getBattery(), ControlCommand.respBattery);
+                    final r = await controller.request(
+                      getBattery(),
+                      ControlCommand.respBattery,
+                    );
                     controller.showToast('${readU16(r.data, 0)}%');
                   }),
                   child: Text(s.t('sendBattery')),
                 ),
                 OutlinedButton(
                   onPressed: () => _guard(context, controller, () async {
-                    await controller.request(getFileSystemInfo(), ControlCommand.getFsInfoResponse);
+                    await controller.request(
+                      getFileSystemInfo(),
+                      ControlCommand.getFsInfoResponse,
+                    );
                     controller.showToast(s.t('refreshOk'));
                   }),
                   child: Text(s.t('sendFs')),
@@ -1321,10 +1888,20 @@ class _DiagnosticsPage extends StatelessWidget {
               width: double.infinity,
               constraints: const BoxConstraints(minHeight: 180),
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: const Color(0xFF080A0F), borderRadius: BorderRadius.circular(12), border: Border.all(color: McColors.line)),
+              decoration: BoxDecoration(
+                color: const Color(0xFF080A0F),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: McColors.line),
+              ),
               child: Text(
-                controller.logs.map((e) => '${e.time} ${e.message} ${e.data ?? ''}').join('\n'),
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 12, height: 1.4),
+                controller.logs
+                    .map((e) => '${e.time} ${e.message} ${e.data ?? ''}')
+                    .join('\n'),
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  height: 1.4,
+                ),
               ),
             ),
           ],
@@ -1363,9 +1940,19 @@ Profile text is capped at 319 UTF-8 bytes. Tags are capped at 5.
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(controller.i18n.t('docsIntro'), style: const TextStyle(color: McColors.muted)),
+            Text(
+              controller.i18n.t('docsIntro'),
+              style: const TextStyle(color: McColors.muted),
+            ),
             const SizedBox(height: 12),
-            const Text(body, style: TextStyle(fontFamily: 'monospace', height: 1.5, fontSize: 13)),
+            const Text(
+              body,
+              style: TextStyle(
+                fontFamily: 'monospace',
+                height: 1.5,
+                fontSize: 13,
+              ),
+            ),
           ],
         ),
       ),
@@ -1391,7 +1978,11 @@ class _Warn extends StatelessWidget {
   }
 }
 
-Future<void> _guard(BuildContext context, AppController c, Future<void> Function() run) async {
+Future<void> _guard(
+  BuildContext context,
+  AppController c,
+  Future<void> Function() run,
+) async {
   try {
     await run();
   } catch (e) {
@@ -1399,7 +1990,13 @@ Future<void> _guard(BuildContext context, AppController c, Future<void> Function
   }
 }
 
-Future<bool> showRiskDialog(BuildContext context, AppController c, {required String kind, required String fileName, required int bytes}) async {
+Future<bool> showRiskDialog(
+  BuildContext context,
+  AppController c, {
+  required String kind,
+  required String fileName,
+  required int bytes,
+}) async {
   final isOta = kind == 'OTA';
   final name = c.device?.name ?? 'MoniCard';
   var checked = false;
@@ -1413,20 +2010,31 @@ Future<bool> showRiskDialog(BuildContext context, AppController c, {required Str
               final ready = checked && typed == name;
               return AlertDialog(
                 backgroundColor: const Color(0xFF131722),
-                title: Text(c.i18n.t(isOta ? 'disclaimerOtaTitle' : 'disclaimerFileTitle')),
+                title: Text(
+                  c.i18n.t(
+                    isOta ? 'disclaimerOtaTitle' : 'disclaimerFileTitle',
+                  ),
+                ),
                 content: SizedBox(
                   width: 440,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(c.i18n.t(isOta ? 'disclaimerOtaBody' : 'disclaimerFileBody')),
+                      Text(
+                        c.i18n.t(
+                          isOta ? 'disclaimerOtaBody' : 'disclaimerFileBody',
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Text('• ${c.i18n.t('risk1')}'),
                       Text('• ${c.i18n.t('risk2')}'),
                       Text('• ${c.i18n.t('risk3')}'),
                       const SizedBox(height: 8),
-                      Text('$fileName (${(bytes / 1024).ceil()} KB)', style: const TextStyle(fontWeight: FontWeight.w700)),
+                      Text(
+                        '$fileName (${(bytes / 1024).ceil()} KB)',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
                       CheckboxListTile(
                         value: checked,
                         onChanged: (v) => setSt(() => checked = v ?? false),
@@ -1440,10 +2048,20 @@ Future<bool> showRiskDialog(BuildContext context, AppController c, {required Str
                   ),
                 ),
                 actions: [
-                  TextButton(onPressed: () => Navigator.pop(context, false), child: Text(c.i18n.t('cancel'))),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text(c.i18n.t('cancel')),
+                  ),
                   ElevatedButton(
-                    style: isOta ? ElevatedButton.styleFrom(backgroundColor: const Color(0xFF5B2029), foregroundColor: Colors.white) : null,
-                    onPressed: ready ? () => Navigator.pop(context, true) : null,
+                    style: isOta
+                        ? ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF5B2029),
+                            foregroundColor: Colors.white,
+                          )
+                        : null,
+                    onPressed: ready
+                        ? () => Navigator.pop(context, true)
+                        : null,
                     child: Text(c.i18n.t(isOta ? 'startOta' : 'startTransfer')),
                   ),
                 ],

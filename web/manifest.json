@@ -1,10 +1,10 @@
 {
-    "name": "MoniCard Super",
+    "name": "MoniCard Super App",
     "short_name": "MoniCard",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#080a10",
-    "theme_color": "#080a10",
+    "background_color": "#08060F",
+    "theme_color": "#08060F",
     "description": "MoniCard companion for Android and Web",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,

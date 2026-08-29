@@ -160,6 +160,8 @@ class AppController extends ChangeNotifier {
   List<TagRef> selectedTags = [];
   String tagCategoryId = '';
   bool busy = false;
+  bool connecting = false;
+  bool lastConnectCancelled = false;
   String? toast;
 
   final Map<int, List<_Pending>> _pending = {};
@@ -198,11 +200,69 @@ class AppController extends ChangeNotifier {
     catalog = await TagCatalog.load();
     log('MoniCard Super ready');
     notifyListeners();
+    unawaited(_autoReconnect());
+  }
+
+  bool get hasSavedDevice =>
+      device != null && device!.id != null && device!.id != 'preview';
+
+  Future<void> _autoReconnect() async {
+    if (kIsWeb) return;
+    if (!hasSavedDevice || ble.connected || connecting) return;
+    await connect(auto: true);
   }
 
   void go(String next) {
     route = next;
     notifyListeners();
+  }
+
+  bool get isHome => route == 'home';
+
+  void back() {
+    if (route.startsWith('card-detail/')) {
+      go('received-cards');
+      return;
+    }
+    if (route == 'diagnostics' || route == 'docs') {
+      go('settings');
+      return;
+    }
+    if (route != 'home') go('home');
+  }
+
+  String titleForRoute() {
+    if (route.startsWith('card-detail/')) return i18n.t('cardDetails');
+    switch (route) {
+      case 'media-image':
+        return i18n.t('image');
+      case 'media-animation':
+        return i18n.t('animation');
+      case 'device-settings':
+        return i18n.t('deviceControl');
+      case 'card':
+        return i18n.t('profile');
+      case 'tags':
+        return i18n.t('tags');
+      case 'carousel':
+        return i18n.t('carousel');
+      case 'received-cards':
+        return i18n.t('receivedCards');
+      case 'device-info':
+        return i18n.t('deviceInfo');
+      case 'file-transfer':
+        return i18n.t('fileTransfer');
+      case 'ota-update':
+        return i18n.t('otaUpdate');
+      case 'settings':
+        return i18n.t('appSettings');
+      case 'diagnostics':
+        return i18n.t('diagnostics');
+      case 'docs':
+        return i18n.t('documentation');
+      default:
+        return device?.name ?? i18n.t('appName');
+    }
   }
 
   void setLocale(String code) {
@@ -303,16 +363,60 @@ class AppController extends ChangeNotifier {
     return item.future;
   }
 
-  Future<void> connect() async {
+  bool get previewDevice => device?.id == 'preview';
+
+  Future<bool> connect({bool scan = false, bool auto = false}) async {
+    if (connecting) return ble.connected;
+    if (ble.connected && !scan) return true;
+    lastConnectCancelled = false;
+    connecting = true;
+    notifyListeners();
     try {
-      await ble.connect();
+      final id = device?.id;
+      final useSaved = !kIsWeb && !scan && id != null && id != 'preview';
+      await ble.connect(
+        knownId: useSaved ? id : null,
+        picker: scan || !useSaved,
+        auto: auto,
+      );
+      return ble.connected;
     } catch (error) {
+      if (auto) {
+        log('auto reconnect skipped', error.toString());
+        return false;
+      }
+      if (error is BleUnavailable) {
+        if (scan || !hasSavedDevice) {
+          enterPreview();
+        }
+        return false;
+      }
       final text = error.toString();
-      if (!text.contains('NotFoundError') && !text.contains('cancelled')) {
+      lastConnectCancelled = text.contains('NotFoundError') ||
+          text.contains('cancelled') ||
+          text.contains('AbortError');
+      if (lastConnectCancelled) return false;
+      if (!(hasSavedDevice && !scan)) {
         showToast(i18n.t('connectFailed', {'error': text}));
       }
       log('connect failed', text);
+      return false;
+    } finally {
+      connecting = false;
+      notifyListeners();
     }
+  }
+
+  void enterPreview() {
+    device = DeviceSnapshot(
+      id: 'preview',
+      name: i18n.t('previewDeviceName'),
+      connected: false,
+      firmwareVersion: i18n.t('previewFirmware'),
+    );
+    persist();
+    log('preview device opened');
+    showToast(i18n.t('previewEntered'));
   }
 
   Future<void> disconnect() => ble.disconnect();
@@ -353,7 +457,13 @@ class AppController extends ChangeNotifier {
     ble.disconnect();
     device = null;
     persist();
+    notifyListeners();
     go('home');
+  }
+
+  Future<bool> forgetAndScan() async {
+    forget();
+    return connect(scan: true);
   }
 
   Future<void> refreshRuntime({bool silent = false}) async {

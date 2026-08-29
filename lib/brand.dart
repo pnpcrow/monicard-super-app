@@ -157,14 +157,24 @@ class ProductPair extends StatelessWidget {
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(18),
-            child: Image.asset(BrandAssets.productStand, fit: BoxFit.cover, height: 180, filterQuality: FilterQuality.medium),
+            child: Image.asset(
+              BrandAssets.productStand,
+              fit: BoxFit.contain,
+              height: 180,
+              filterQuality: FilterQuality.medium,
+            ),
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(18),
-            child: Image.asset(BrandAssets.productBack, fit: BoxFit.cover, height: 180, filterQuality: FilterQuality.medium),
+            child: Image.asset(
+              BrandAssets.productBack,
+              fit: BoxFit.contain,
+              height: 180,
+              filterQuality: FilterQuality.medium,
+            ),
           ),
         ),
       ],

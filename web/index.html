@@ -53,9 +53,12 @@
       box-shadow: 0 8px 28px rgba(247,237,22,0.22);
     }
     #flutter-splash .product {
-      width: min(280px, 72vw);
+      width: auto;
       height: auto;
+      max-height: min(260px, 38vh);
+      max-width: min(140px, 42vw);
       margin: 8px 0 4px;
+      object-fit: contain;
       filter: drop-shadow(0 18px 40px rgba(39,215,255,0.28));
     }
     #flutter-splash h1 {

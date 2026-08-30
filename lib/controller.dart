@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'ble/ble.dart';
+import 'ble/ble_interface.dart';
 import 'l10n.dart';
 import 'protocol.dart';
 import 'tags.dart';
@@ -169,6 +170,9 @@ class AppController extends ChangeNotifier {
   bool lastConnectCancelled = false;
   String? toast;
   LinkPhase linkPhase = LinkPhase.none;
+  List<NearbyCard> nearby = [];
+  bool scanningNearby = false;
+  StreamSubscription<List<NearbyCard>>? _scanSub;
 
   final Map<int, List<_Pending>> _pending = {};
 
@@ -437,19 +441,23 @@ class AppController extends ChangeNotifier {
 
   bool get previewDevice => device?.id == 'preview';
 
-  Future<bool> connect({bool scan = false, bool auto = false}) async {
+  Future<bool> connect({bool scan = false, bool auto = false, String? targetId}) async {
     if (connecting) return linkPhase == LinkPhase.live;
-    if (linkPhase == LinkPhase.live && !scan) return true;
+    if (linkPhase == LinkPhase.live && !scan && targetId == null) return true;
     lastConnectCancelled = false;
     connecting = true;
     _setPhase(LinkPhase.connecting);
     notifyListeners();
     try {
-      final id = device?.id;
-      final useSaved = !kIsWeb && !scan && id != null && id != 'preview';
+      final id = targetId ?? device?.id;
+      final useSaved = !kIsWeb &&
+          !scan &&
+          targetId == null &&
+          id != null &&
+          id != 'preview';
       await ble.connect(
-        knownId: useSaved ? id : null,
-        picker: scan || !useSaved,
+        knownId: targetId ?? (useSaved ? id : null),
+        picker: kIsWeb && (scan || targetId == null && !useSaved),
         auto: auto,
       );
       return linkPhase == LinkPhase.live;
@@ -497,6 +505,39 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> disconnect() => ble.disconnect();
+
+  Future<void> startNearbyScan() async {
+    if (kIsWeb) return;
+    await stopNearbyScan();
+    nearby = [];
+    scanningNearby = true;
+    notifyListeners();
+    _scanSub = ble.scanResults.listen((list) {
+      nearby = list;
+      notifyListeners();
+    });
+    try {
+      await ble.startScan(timeout: const Duration(seconds: 12));
+    } finally {
+      scanningNearby = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> stopNearbyScan() async {
+    await ble.stopScan();
+    await _scanSub?.cancel();
+    _scanSub = null;
+    if (scanningNearby) {
+      scanningNearby = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> connectToNearby(NearbyCard card) async {
+    await stopNearbyScan();
+    return connect(targetId: card.id);
+  }
 
   void updateProfile(String value) {
     profile = value;

@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'brand.dart';
+import 'ble/ble_interface.dart';
 import 'controller.dart';
 import 'crop_editor.dart';
 import 'l10n.dart';
@@ -230,7 +231,8 @@ Future<void> showReconnectFailedDialog(BuildContext host, AppController c) {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              c.forgetAndScan();
+              c.forget();
+              showConnectSheet(host, c, scanNow: !kIsWeb);
             },
             child: Text(s.t('forgetAndScan')),
           ),
@@ -240,115 +242,229 @@ Future<void> showReconnectFailedDialog(BuildContext host, AppController c) {
   );
 }
 
-Future<void> showConnectSheet(BuildContext context, AppController c) {
-  final s = c.i18n;
-  final d = c.device;
+Future<void> showConnectSheet(
+  BuildContext context,
+  AppController c, {
+  bool scanNow = false,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     backgroundColor: McColors.bg,
+    isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
-    builder: (context) {
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 10, 8, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: McColors.panel2,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
-                child: Text(
-                  s.t('connectionMenu'),
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.4,
-                  ),
-                ),
-              ),
-              OneGroup(
+    builder: (context) => _ConnectSheet(controller: c, scanNow: scanNow),
+  );
+}
+
+class _ConnectSheet extends StatefulWidget {
+  const _ConnectSheet({required this.controller, this.scanNow = false});
+  final AppController controller;
+  final bool scanNow;
+
+  @override
+  State<_ConnectSheet> createState() => _ConnectSheetState();
+}
+
+class _ConnectSheetState extends State<_ConnectSheet> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.scanNow && !kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        widget.controller.startNearbyScan();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.stopNearbyScan();
+    super.dispose();
+  }
+
+  Future<void> _scanOrPick() async {
+    final c = widget.controller;
+    if (c.connecting) return;
+    if (kIsWeb) {
+      Navigator.pop(context);
+      await c.connect(scan: true);
+      return;
+    }
+    await c.startNearbyScan();
+  }
+
+  Future<void> _pick(NearbyCard card) async {
+    final c = widget.controller;
+    Navigator.pop(context);
+    await c.connectToNearby(card);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: widget.controller,
+      builder: (context, _) {
+        final c = widget.controller;
+        final s = c.i18n;
+        final d = c.device;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 10, 8, 16),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (d != null)
-                    OneRow(
-                      icon: Icons.badge_outlined,
-                      color: McTint.device,
-                      title: d.name,
-                      subtitle: [
-                        c.connecting
-                            ? s.t('reconnecting')
-                            : c.ble.connected
-                            ? s.t('connected')
-                            : s.t('savedOffline'),
-                        if (d.battery != null)
-                          '${s.t('battery')} ${d.battery}%',
-                        d.firmwareVersion,
-                      ].whereType<String>().join(' · '),
-                      trailing: _Dot(online: c.ble.connected),
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: McColors.panel2,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
                     ),
-                  OneRow(
-                    icon: Icons.bluetooth_searching,
-                    color: McTint.display,
-                    title: s.t('startScan'),
-                    nav: OneRowNav.none,
-                    onTap: c.connecting
-                        ? null
-                        : () {
-                            Navigator.pop(context);
-                            c.connect(scan: true);
-                          },
                   ),
-                  if (c.ble.connected)
-                    OneRow(
-                      icon: Icons.link_off,
-                      color: McTint.advanced,
-                      title: s.t('disconnectAction'),
-                      nav: OneRowNav.none,
-                      onTap: () {
-                        Navigator.pop(context);
-                        c.disconnect();
-                      },
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
+                    child: Text(
+                      s.t('connectionMenu'),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.4,
+                      ),
                     ),
-                  OneRow(
-                    icon: Icons.visibility_outlined,
-                    color: McTint.identity,
-                    title: s.t('previewContinue'),
-                    nav: OneRowNav.none,
-                    onTap: () {
-                      Navigator.pop(context);
-                      c.enterPreview();
-                    },
+                  ),
+                  OneGroup(
+                    children: [
+                      if (d != null && d.id != 'preview')
+                        OneRow(
+                          icon: Icons.badge_outlined,
+                          color: McTint.device,
+                          title: d.name,
+                          subtitle: [
+                            c.connecting
+                                ? s.t('reconnecting')
+                                : c.linkPhase == LinkPhase.live
+                                ? s.t('connected')
+                                : s.t('savedOffline'),
+                            if (d.battery != null)
+                              '${s.t('battery')} ${d.battery}%',
+                            d.firmwareVersion,
+                          ].whereType<String>().join(' · '),
+                          trailing: _Dot(online: c.linkPhase == LinkPhase.live),
+                        ),
+                      OneRow(
+                        icon: Icons.bluetooth_searching,
+                        color: McTint.display,
+                        title: s.t('startScan'),
+                        subtitle: c.scanningNearby
+                            ? s.t('scanningNearby')
+                            : kIsWeb
+                            ? null
+                            : s.t('tapDeviceToConnect'),
+                        nav: OneRowNav.none,
+                        onTap: c.connecting ? null : _scanOrPick,
+                      ),
+                      if (c.linkPhase == LinkPhase.live)
+                        OneRow(
+                          icon: Icons.link_off,
+                          color: McTint.advanced,
+                          title: s.t('disconnectAction'),
+                          nav: OneRowNav.none,
+                          onTap: () {
+                            Navigator.pop(context);
+                            c.disconnect();
+                          },
+                        ),
+                      OneRow(
+                        icon: Icons.visibility_outlined,
+                        color: McTint.identity,
+                        title: s.t('previewContinue'),
+                        nav: OneRowNav.none,
+                        onTap: () {
+                          Navigator.pop(context);
+                          c.enterPreview();
+                        },
+                      ),
+                    ],
+                  ),
+                  if (!kIsWeb) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
+                      child: Row(
+                        children: [
+                          Text(
+                            s.t('foundDevices'),
+                            style: const TextStyle(
+                              color: McColors.muted,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (c.scanningNearby)
+                            const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (c.nearby.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        child: Text(
+                          c.scanningNearby
+                              ? s.t('scanningNearby')
+                              : s.t('nearbyEmpty'),
+                          style: const TextStyle(
+                            color: McColors.muted,
+                            fontSize: 13,
+                            height: 1.4,
+                          ),
+                        ),
+                      )
+                    else
+                      OneGroup(
+                        children: [
+                          for (final card in c.nearby)
+                            OneRow(
+                              icon: Icons.nfc,
+                              color: McTint.device,
+                              title: card.name,
+                              subtitle: card.rssi == 0
+                                  ? card.id
+                                  : '${card.id} · ${card.rssi} dBm',
+                              nav: OneRowNav.none,
+                              onTap: c.connecting ? null : () => _pick(card),
+                            ),
+                        ],
+                      ),
+                  ],
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                    child: Text(
+                      s.t('browserNotice'),
+                      style: const TextStyle(
+                        color: McColors.muted,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-                child: Text(
-                  s.t('browserNotice'),
-                  style: const TextStyle(
-                    color: McColors.muted,
-                    fontSize: 12,
-                    height: 1.4,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      );
-    },
-  );
+        );
+      },
+    );
+  }
 }
 
 class _LocaleField extends StatelessWidget {
@@ -793,7 +909,7 @@ class _UnlinkedHome extends StatelessWidget {
                   ? s.t('quickConnectHint', {'name': d?.name ?? 'MoniCard'})
                   : s.t('tapToConnect'),
               nav: OneRowNav.sheet,
-              onTap: () => showConnectSheet(context, controller),
+              onTap: () => showConnectSheet(context, controller, scanNow: !kIsWeb),
             ),
             OneRow(
               icon: Icons.visibility_outlined,

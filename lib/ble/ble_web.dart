@@ -99,6 +99,18 @@ class WebBle implements MoniCardBle {
   @override
   VoidHandler? onDisconnect;
 
+  final StreamController<List<NearbyCard>> _scanCtrl =
+      StreamController<List<NearbyCard>>.broadcast();
+
+  @override
+  Stream<List<NearbyCard>> get scanResults => _scanCtrl.stream;
+
+  @override
+  Future<void> startScan({Duration timeout = const Duration(seconds: 12)}) async {}
+
+  @override
+  Future<void> stopScan() async {}
+
   @override
   Future<void> connect({String? knownId, bool picker = false, bool auto = false}) async {
     final bluetooth = _bluetooth;

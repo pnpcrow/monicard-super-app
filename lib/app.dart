@@ -128,17 +128,7 @@ class _ConnectionChip extends StatelessWidget {
                   ? null
                   : () async {
                       if (!online && controller.hasSavedDevice) {
-                        if (kIsWeb) {
-                          await controller.connect(scan: true);
-                          return;
-                        }
-                        final ok = await controller.connect(scan: false);
-                        if (!ok &&
-                            context.mounted &&
-                            controller.hasSavedDevice &&
-                            !controller.lastConnectCancelled) {
-                          await showReconnectFailedDialog(context, controller);
-                        }
+                        await reconnectSavedDevice(context, controller);
                         return;
                       }
                       showConnectSheet(context, controller);
@@ -184,6 +174,21 @@ class _ConnectionChip extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+Future<void> reconnectSavedDevice(BuildContext context, AppController c) async {
+  if (c.connecting) return;
+  if (kIsWeb) {
+    await c.connect(scan: true);
+    return;
+  }
+  final ok = await c.connect(scan: false);
+  if (!ok &&
+      context.mounted &&
+      c.hasSavedDevice &&
+      !c.lastConnectCancelled) {
+    await showReconnectFailedDialog(context, c);
   }
 }
 
@@ -597,12 +602,14 @@ class _RouteLayerState extends State<_RouteLayer>
             ).animate(recedeAnim),
             child: TickerMode(
               enabled: !widget.hidden,
-              child: SizedBox.expand(
-                child: ColoredBox(
-                  color: McColors.bg,
-                  child: _Router(
-                    controller: widget.controller,
-                    route: widget.route,
+              child: RepaintBoundary(
+                child: SizedBox.expand(
+                  child: ColoredBox(
+                    color: McColors.bg,
+                    child: _Router(
+                      controller: widget.controller,
+                      route: widget.route,
+                    ),
                   ),
                 ),
               ),
@@ -717,11 +724,16 @@ class _HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = controller.i18n;
     final d = controller.device;
+    final waiting = controller.hasSavedDevice &&
+        !controller.ble.connected &&
+        !controller.previewDevice;
     return HoloBackdrop(
-      child: ListView(
-        key: const PageStorageKey<String>('home'),
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
-        children: [
+      child: waiting
+          ? _DisconnectedHome(controller: controller)
+          : ListView(
+              key: const PageStorageKey<String>('home'),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
+              children: [
           OneUiTitle(
             controller.ble.connected
                 ? (d?.name ?? s.t('passName'))
@@ -882,6 +894,75 @@ class _HomePage extends StatelessWidget {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DisconnectedHome extends StatelessWidget {
+  const _DisconnectedHome({required this.controller});
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = controller.i18n;
+    final d = controller.device;
+    final connecting = controller.connecting;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      child: Column(
+        children: [
+          OneUiTitle(
+            d?.name ?? s.t('passName'),
+            subtitle: connecting ? s.t('reconnecting') : s.t('savedOffline'),
+          ),
+          Expanded(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 420),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    DeviceHero(online: false),
+                    Positioned(
+                      left: 36,
+                      right: 36,
+                      bottom: 10,
+                      child: ElevatedButton.icon(
+                        onPressed: connecting
+                            ? null
+                            : () => reconnectSavedDevice(context, controller),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: McColors.panel,
+                          foregroundColor: McColors.text,
+                          disabledBackgroundColor: McColors.panel2,
+                          disabledForegroundColor: McColors.muted,
+                          minimumSize: const Size(0, 48),
+                          elevation: 8,
+                          shadowColor: Colors.black54,
+                        ),
+                        icon: connecting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.bluetooth, size: 20),
+                        label: Text(
+                          connecting
+                              ? s.t('reconnecting')
+                              : s.t('quickConnect'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

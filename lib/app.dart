@@ -127,7 +127,9 @@ class _ConnectionChip extends StatelessWidget {
               onTap: connecting
                   ? null
                   : () async {
-                      if (!online && controller.hasSavedDevice) {
+                      if (!kIsWeb &&
+                          !online &&
+                          controller.hasSavedDevice) {
                         await reconnectSavedDevice(context, controller);
                         return;
                       }
@@ -724,7 +726,11 @@ class _HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = controller.i18n;
     final d = controller.device;
-    final waiting = controller.hasSavedDevice &&
+    final waiting = !kIsWeb &&
+        controller.hasSavedDevice &&
+        !controller.ble.connected &&
+        !controller.previewDevice;
+    final webNeedsScan = kIsWeb &&
         !controller.ble.connected &&
         !controller.previewDevice;
     return HoloBackdrop(
@@ -767,7 +773,7 @@ class _HomePage extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 16),
-          if (d == null)
+          if (d == null || webNeedsScan)
             OneGroup(
               children: [
                 OneRow(

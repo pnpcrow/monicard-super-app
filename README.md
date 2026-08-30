@@ -6,12 +6,26 @@ MoniCard(매직카드)용 **Android / Web** 동반 앱입니다. Flutter 한 코
 
 | | |
 |---|---|
+| 웹 앱 | [pnpcrow.github.io/monicard-super-app](https://pnpcrow.github.io/monicard-super-app/) |
 | 패키지 | `dev.monicard.super_app` |
 | Dart | `monicard_super_app` |
 | 버전 | `1.0.0` |
 | 라이선스 | [MIT](LICENSE) |
 | 처음 사용 매뉴얼 | [Docs/monicard-super-app-eli5-manual.pdf](Docs/monicard-super-app-eli5-manual.pdf) |
-| 하드웨어 참고 | [monicard-fullstack](https://monicard-fullstack.azsoft-jp.workers.dev/) |
+| 하드웨어 참고 | [원본 웹 컴패니언](https://monicard-fullstack.azsoft-jp.workers.dev/) |
+
+## 웹에서 쓰기
+
+배포 주소: **https://pnpcrow.github.io/monicard-super-app/**  
+(빌드는 `gh-pages` 브랜치. 저장소 Settings → Pages에서 Branch `gh-pages` / root 를 고르면 이 주소로 열립니다.)
+
+1. **Chrome** 또는 **Edge**로 연다. Safari·Firefox는 Web Bluetooth가 없어 기기를 찾지 못한다.
+2. 주소가 `https`인지 확인한다.
+3. 카드 전원을 켜고, PC/휴대폰 Bluetooth를 켠다.
+4. 위쪽 알약 칩 또는 **기기 검색**을 누른 뒤, 브라우저 기기 창에서 이름이 `MoniCard`로 시작하는 기기를 고른다.
+5. 칩에 카드 이름과 초록 점이 보이면 연결된 것이다. 그다음 홈에서 사진·애니메이션을 보낸다.
+
+웹은 저장된 기기로 바로 붙지 않는다. 연결할 때마다 브라우저 선택 창에서 고른다. 미리보기 창(iframe) 안에서는 Bluetooth가 막힐 수 있다.
 
 ## 할 수 있는 일
 
@@ -37,11 +51,13 @@ flutter pub get
 flutter test
 flutter run -d chrome
 flutter run -d android
-flutter build web --release --base-href /
+flutter build web --release --base-href /monicard-super-app/
 flutter build apk --release
 ```
 
 Android Studio에서 `android/`만 열지 마세요. 저장소 루트에서 `flutter pub get` 한 뒤 Flutter 프로젝트로 엽니다.
+
+GitHub Pages에 올릴 때는 `--base-href /monicard-super-app/` 가 필요합니다.
 
 ## 문서
 

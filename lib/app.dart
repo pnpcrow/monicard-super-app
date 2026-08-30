@@ -2006,16 +2006,13 @@ Future<bool> showRiskDialog(
   required int bytes,
 }) async {
   final isOta = kind == 'OTA';
-  final name = c.device?.name ?? 'MoniCard';
   var checked = false;
-  var typed = '';
   return await showDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (context) {
           return StatefulBuilder(
             builder: (context, setSt) {
-              final ready = checked && typed == name;
               return AlertDialog(
                 backgroundColor: const Color(0xFF131722),
                 title: Text(
@@ -2050,8 +2047,6 @@ Future<bool> showRiskDialog(
                         controlAffinity: ListTileControlAffinity.leading,
                         contentPadding: EdgeInsets.zero,
                       ),
-                      Text(c.i18n.t('typeDeviceName')),
-                      TextField(onChanged: (v) => setSt(() => typed = v)),
                     ],
                   ),
                 ),
@@ -2067,7 +2062,7 @@ Future<bool> showRiskDialog(
                             foregroundColor: Colors.white,
                           )
                         : null,
-                    onPressed: ready
+                    onPressed: checked
                         ? () => Navigator.pop(context, true)
                         : null,
                     child: Text(c.i18n.t(isOta ? 'startOta' : 'startTransfer')),

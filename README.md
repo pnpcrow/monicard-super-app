@@ -6,7 +6,7 @@ MoniCard(매직카드)용 **Android / Web** 동반 앱입니다. Flutter 한 코
 
 | | |
 |---|---|
-| 웹 앱 | [pnpcrow.github.io/monicard-super-app](https://pnpcrow.github.io/monicard-super-app/) |
+| 웹 앱 | [monicard-super-app.grok.me](https://monicard-super-app.grok.me) |
 | 패키지 | `dev.monicard.super_app` |
 | Dart | `monicard_super_app` |
 | 버전 | `1.0.0` |
@@ -16,8 +16,7 @@ MoniCard(매직카드)용 **Android / Web** 동반 앱입니다. Flutter 한 코
 
 ## 웹에서 쓰기
 
-배포 주소: **https://pnpcrow.github.io/monicard-super-app/**  
-(빌드는 `gh-pages` 브랜치. 저장소 Settings → Pages에서 Branch `gh-pages` / root 를 고르면 이 주소로 열립니다.)
+배포 주소: **https://monicard-super-app.grok.me**
 
 1. **Chrome** 또는 **Edge**로 연다. Safari·Firefox는 Web Bluetooth가 없어 기기를 찾지 못한다.
 2. 주소가 `https`인지 확인한다.

@@ -85,15 +85,7 @@ class WebBle implements MoniCardBle {
 
   bool _radioUp = false;
   @override
-  bool get connected {
-    final gatt = _device?.gatt;
-    if (gatt != null) {
-      try {
-        return gatt.connected;
-      } catch (_) {}
-    }
-    return _radioUp;
-  }
+  bool get connected => _radioUp;
   @override
   String? deviceId;
   @override

@@ -84,7 +84,7 @@ class MoniCardApp extends StatelessWidget {
                           : _DisconnectedHome(controller: c),
                     )
                   : _RouteSwitcher(
-                      key: ValueKey('nav-${c.showFeatureHome}'),
+                      key: ValueKey('nav-${c.linkPhase}'),
                       controller: c,
                     ),
             ),
@@ -120,16 +120,14 @@ class _ConnectionChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final d = controller.device;
     final connecting = controller.connecting;
-    final label = connecting
-        ? controller.i18n.t('reconnecting')
-        : controller.bleLive
-        ? (d?.name ?? controller.i18n.t('passName'))
-        : controller.previewDevice
-        ? controller.i18n.t('previewDeviceName')
-        : controller.isSavedOffline
-        ? controller.i18n.t('savedOffline')
-        : controller.i18n.t('notConnected');
-    final online = controller.bleLive;
+    final label = switch (controller.linkPhase) {
+      LinkPhase.connecting => controller.i18n.t('reconnecting'),
+      LinkPhase.live => d?.name ?? controller.i18n.t('passName'),
+      LinkPhase.preview => controller.i18n.t('previewDeviceName'),
+      LinkPhase.saved => controller.i18n.t('savedOffline'),
+      LinkPhase.none => controller.i18n.t('notConnected'),
+    };
+    final online = controller.linkPhase == LinkPhase.live;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Material(
@@ -682,7 +680,7 @@ class _Router extends StatelessWidget {
       default:
         return _HomePage(
           key: ValueKey(
-            'home-${controller.isSavedOffline}-${controller.showFeatureHome}',
+            'home-${controller.linkPhase.name}',
           ),
           controller: controller,
         );

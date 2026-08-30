@@ -138,6 +138,9 @@ class LogLine {
   final Object? data;
 }
 
+/// Radio/session phase. UI (chip + home) reads only this, never live GATT.
+enum LinkPhase { none, saved, connecting, live, preview }
+
 class AppController extends ChangeNotifier {
   AppController() {
     ble.onPacket = _onPacket;
@@ -165,6 +168,7 @@ class AppController extends ChangeNotifier {
   bool connecting = false;
   bool lastConnectCancelled = false;
   String? toast;
+  LinkPhase linkPhase = LinkPhase.none;
 
   final Map<int, List<_Pending>> _pending = {};
 
@@ -200,6 +204,13 @@ class AppController extends ChangeNotifier {
     }
     tagCategoryId = _prefs?.getString('monicard-tag-category-key') ?? '';
     catalog = await TagCatalog.load();
+    if (device?.id == 'preview') {
+      linkPhase = LinkPhase.preview;
+    } else if (hasSavedDevice) {
+      linkPhase = LinkPhase.saved;
+    } else {
+      linkPhase = LinkPhase.none;
+    }
     log('MoniCard Super ready');
     notifyListeners();
     unawaited(_autoReconnect());
@@ -208,20 +219,23 @@ class AppController extends ChangeNotifier {
   bool get hasSavedDevice =>
       device != null && device!.id != null && device!.id != 'preview';
 
-  bool get bleLive => ble.connected;
+  bool get bleLive => linkPhase == LinkPhase.live;
 
-  /// Same condition as the connection-chip "저장됨, 현재 연결 안 됨" branch:
-  /// a remembered device exists, it is not preview, and GATT is not up.
   bool get isSavedOffline =>
-      device != null && !previewDevice && !ble.connected;
+      linkPhase == LinkPhase.saved ||
+      (linkPhase == LinkPhase.connecting && hasSavedDevice);
 
-  /// Feature menus. Never true when the chip would say saved-offline.
   bool get showFeatureHome =>
-      !isSavedOffline && (ble.connected || previewDevice);
+      linkPhase == LinkPhase.live || linkPhase == LinkPhase.preview;
+
+  void _setPhase(LinkPhase next) {
+    if (linkPhase == next) return;
+    linkPhase = next;
+  }
 
   Future<void> _autoReconnect() async {
     if (kIsWeb) return;
-    if (!hasSavedDevice || ble.connected || connecting) return;
+    if (linkPhase != LinkPhase.saved || connecting) return;
     await connect(auto: true);
   }
 
@@ -371,6 +385,7 @@ class AppController extends ChangeNotifier {
   }
 
   void _onConnect() {
+    _setPhase(LinkPhase.live);
     device = DeviceSnapshot(
       id: ble.deviceId ?? device?.id,
       name: ble.deviceName ?? device?.name ?? 'MoniCard',
@@ -384,11 +399,14 @@ class AppController extends ChangeNotifier {
     persist();
     log('BLE connected');
     notifyListeners();
-    refreshRuntime(silent: true).catchError((e) => log('Initial refresh failed', e.toString()));
+    if (linkPhase == LinkPhase.live) {
+      refreshRuntime(silent: true).catchError((e) => log('Initial refresh failed', e.toString()));
+    }
   }
 
   void _onDisconnect() {
     device?.connected = false;
+    _setPhase(hasSavedDevice ? LinkPhase.saved : LinkPhase.none);
     for (final queue in _pending.values) {
       for (final item in queue) {
         item.timer.cancel();
@@ -420,10 +438,11 @@ class AppController extends ChangeNotifier {
   bool get previewDevice => device?.id == 'preview';
 
   Future<bool> connect({bool scan = false, bool auto = false}) async {
-    if (connecting) return ble.connected;
-    if (ble.connected && !scan) return true;
+    if (connecting) return linkPhase == LinkPhase.live;
+    if (linkPhase == LinkPhase.live && !scan) return true;
     lastConnectCancelled = false;
     connecting = true;
+    _setPhase(LinkPhase.connecting);
     notifyListeners();
     try {
       final id = device?.id;
@@ -433,7 +452,7 @@ class AppController extends ChangeNotifier {
         picker: scan || !useSaved,
         auto: auto,
       );
-      return ble.connected;
+      return linkPhase == LinkPhase.live;
     } catch (error) {
       if (auto) {
         log('auto reconnect skipped', error.toString());
@@ -457,6 +476,9 @@ class AppController extends ChangeNotifier {
       return false;
     } finally {
       connecting = false;
+      if (linkPhase == LinkPhase.connecting) {
+        _setPhase(hasSavedDevice ? LinkPhase.saved : LinkPhase.none);
+      }
       notifyListeners();
     }
   }
@@ -468,6 +490,7 @@ class AppController extends ChangeNotifier {
       connected: false,
       firmwareVersion: i18n.t('previewFirmware'),
     );
+    _setPhase(LinkPhase.preview);
     persist();
     log('preview device opened');
     showToast(i18n.t('previewEntered'));
@@ -510,6 +533,7 @@ class AppController extends ChangeNotifier {
   void forget() {
     ble.disconnect();
     device = null;
+    _setPhase(LinkPhase.none);
     persist();
     notifyListeners();
     go('home');
@@ -521,19 +545,26 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> refreshRuntime({bool silent = false}) async {
-    if (!ble.connected || busy) return;
+    if (linkPhase != LinkPhase.live || busy) return;
     busy = true;
     notifyListeners();
     try {
+      if (linkPhase != LinkPhase.live) return;
       final serial = await _soft(request(getSerialNumber(), ControlCommand.respSerialNumber));
+      if (linkPhase != LinkPhase.live) return;
       final version = await _soft(request(getVersion(), ControlCommand.respVersion));
+      if (linkPhase != LinkPhase.live) return;
       final battery = await _soft(request(getBattery(), ControlCommand.respBattery));
+      if (linkPhase != LinkPhase.live) return;
       final fs = await _soft(request(getFileSystemInfo(), ControlCommand.getFsInfoResponse));
+      if (linkPhase != LinkPhase.live) return;
       final controls = await _soft(request(readControlInfo(), ControlCommand.controlInfoResponse));
+      if (linkPhase != LinkPhase.live) return;
       final carousel = await _soft(request(readCarousel(), ControlCommand.respCarouselRd));
+      if (linkPhase != LinkPhase.live) return;
       final card = await _soft(request(readCardInfo(), ControlCommand.respReadCard));
+      if (linkPhase != LinkPhase.live) return;
       device ??= DeviceSnapshot(connected: true);
-      device!.connected = true;
       if (serial != null) device!.serial = decodeText(serial.data);
       if (version != null) device!.firmwareVersion = decodeText(version.data);
       if (battery != null) device!.battery = readU16(battery.data, 0);

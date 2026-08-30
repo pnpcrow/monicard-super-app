@@ -726,13 +726,11 @@ class _HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = controller.i18n;
     final d = controller.device;
-    final waiting = !kIsWeb &&
-        controller.hasSavedDevice &&
-        !controller.ble.connected &&
-        !controller.previewDevice;
-    final webNeedsScan = kIsWeb &&
-        !controller.ble.connected &&
-        !controller.previewDevice;
+    final online = controller.ble.connected;
+    final preview = controller.previewDevice;
+    final savedOffline = controller.hasSavedDevice && !online && !preview;
+    final showMenus = online || preview;
+    final waiting = !kIsWeb && savedOffline;
     return HoloBackdrop(
       child: waiting
           ? _DisconnectedHome(controller: controller)
@@ -741,20 +739,24 @@ class _HomePage extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
               children: [
           OneUiTitle(
-            controller.ble.connected
+            online
                 ? (d?.name ?? s.t('passName'))
-                : s.t('passName'),
-            subtitle: controller.ble.connected
+                : savedOffline
+                    ? (d?.name ?? s.t('passName'))
+                    : s.t('passName'),
+            subtitle: online
                 ? [
                     s.t('connected'),
                     if (d?.battery != null) '${d!.battery}%',
                     d?.firmwareVersion,
                   ].whereType<String>().join('  ·  ')
-                : s.t('slogan'),
+                : savedOffline
+                    ? s.t('savedOffline')
+                    : s.t('slogan'),
           ),
-          DeviceHero(online: controller.ble.connected),
+          DeviceHero(online: online),
           const SizedBox(height: 8),
-          if (controller.previewDevice) ...[
+          if (preview) ...[
             const SizedBox(height: 8),
             OneGroup(
               children: [
@@ -773,14 +775,16 @@ class _HomePage extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 16),
-          if (d == null || webNeedsScan)
+          if (!showMenus)
             OneGroup(
               children: [
                 OneRow(
                   icon: Icons.bluetooth_searching,
                   color: McTint.display,
                   title: s.t('startScan'),
-                  subtitle: s.t('tapToConnect'),
+                  subtitle: savedOffline
+                      ? s.t('quickConnectHint', {'name': d?.name ?? 'MoniCard'})
+                      : s.t('tapToConnect'),
                   nav: OneRowNav.sheet,
                   onTap: () => showConnectSheet(context, controller),
                 ),

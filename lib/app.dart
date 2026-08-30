@@ -553,6 +553,8 @@ class _RouteLayerState extends State<_RouteLayer>
     }
     if (widget.hidden && !oldWidget.hidden) {
       _recede.value = 1;
+    } else if (!widget.hidden && oldWidget.hidden) {
+      _recede.reverse();
     } else if (widget.recede && !oldWidget.recede) {
       _recede.forward();
     } else if (!widget.recede && oldWidget.recede && !widget.hidden) {
@@ -572,16 +574,12 @@ class _RouteLayerState extends State<_RouteLayer>
     final slideAnim = CurvedAnimation(
       parent: _slide,
       curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
+      reverseCurve: Curves.easeOutCubic,
     );
     final recedeAnim = CurvedAnimation(
       parent: _recede,
       curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    );
-    final page = TickerMode(
-      enabled: !widget.hidden,
-      child: _Router(controller: widget.controller, route: widget.route),
+      reverseCurve: Curves.easeOutCubic,
     );
     return Offstage(
       offstage: widget.hidden,
@@ -589,30 +587,26 @@ class _RouteLayerState extends State<_RouteLayer>
         ignoring: widget.hidden || widget.slide == _RouteSlide.outgoing,
         child: SlideTransition(
           position: Tween<Offset>(
-            begin: const Offset(0.28, 0),
+            begin: const Offset(1, 0),
             end: Offset.zero,
           ).animate(slideAnim),
-          child: AnimatedBuilder(
-            animation: recedeAnim,
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(-28 * recedeAnim.value, 0),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ColoredBox(color: McColors.bg, child: child),
-                    IgnorePointer(
-                      child: ColoredBox(
-                        color: Colors.black.withValues(
-                          alpha: 0.24 * recedeAnim.value,
-                        ),
-                      ),
-                    ),
-                  ],
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: Offset.zero,
+              end: const Offset(-0.2, 0),
+            ).animate(recedeAnim),
+            child: TickerMode(
+              enabled: !widget.hidden,
+              child: SizedBox.expand(
+                child: ColoredBox(
+                  color: McColors.bg,
+                  child: _Router(
+                    controller: widget.controller,
+                    route: widget.route,
+                  ),
                 ),
-              );
-            },
-            child: page,
+              ),
+            ),
           ),
         ),
       ),

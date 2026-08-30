@@ -50,13 +50,13 @@ flutter pub get
 flutter test
 flutter run -d chrome
 flutter run -d android
-flutter build web --release --base-href /monicard-super-app/
+flutter build web --release --base-href /
 flutter build apk --release
 ```
 
 Android Studio에서 `android/`만 열지 마세요. 저장소 루트에서 `flutter pub get` 한 뒤 Flutter 프로젝트로 엽니다.
 
-GitHub Pages에 올릴 때는 `--base-href /monicard-super-app/` 가 필요합니다.
+웹 배포(https://monicard-super-app.grok.me)는 `--base-href /` 로 빌드합니다.
 
 ## 문서
 

@@ -153,6 +153,7 @@ class AppController extends ChangeNotifier {
 
   final List<String> _stack = ['home'];
   DateTime? _exitArmedAt;
+  bool navForward = true;
   DeviceSnapshot? device;
   ControlSettings settings = ControlSettings();
   List<ReceivedCard> cards = [];
@@ -214,10 +215,12 @@ class AppController extends ChangeNotifier {
   }
 
   void go(String next) {
+    final before = _stack.length;
     if (next == 'home') {
       _stack
         ..clear()
         ..add('home');
+      navForward = false;
       _exitArmedAt = null;
       notifyListeners();
       return;
@@ -229,6 +232,7 @@ class AppController extends ChangeNotifier {
     } else {
       _stack.add(next);
     }
+    navForward = _stack.length > before;
     _exitArmedAt = null;
     notifyListeners();
   }
@@ -243,6 +247,7 @@ class AppController extends ChangeNotifier {
   void back() {
     if (_stack.length > 1) {
       _stack.removeLast();
+      navForward = false;
       _exitArmedAt = null;
       notifyListeners();
     }

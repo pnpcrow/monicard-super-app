@@ -241,6 +241,26 @@ class OneGroup extends StatelessWidget {
   }
 }
 
+enum OneRowNav { page, sheet, none }
+
+class OneSheetHint extends StatelessWidget {
+  const OneSheetHint({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 18,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        border: Border.all(color: McColors.muted.withValues(alpha: 0.7)),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: const Icon(Icons.expand_less, size: 14, color: McColors.muted),
+    );
+  }
+}
+
 class OneRow extends StatelessWidget {
   const OneRow({
     super.key,
@@ -250,6 +270,7 @@ class OneRow extends StatelessWidget {
     this.subtitle,
     this.onTap,
     this.trailing,
+    this.nav = OneRowNav.page,
   });
 
   final IconData icon;
@@ -258,6 +279,7 @@ class OneRow extends StatelessWidget {
   final String? subtitle;
   final VoidCallback? onTap;
   final Widget? trailing;
+  final OneRowNav nav;
 
   @override
   Widget build(BuildContext context) {
@@ -300,11 +322,15 @@ class OneRow extends StatelessWidget {
                 ),
               ),
               trailing ??
-                  const Icon(
-                    Icons.arrow_forward_ios,
-                    size: 14,
-                    color: McColors.muted,
-                  ),
+                  (nav == OneRowNav.none
+                      ? const SizedBox.shrink()
+                      : nav == OneRowNav.sheet
+                      ? const OneSheetHint()
+                      : const Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: McColors.muted,
+                        )),
             ],
           ),
         ),

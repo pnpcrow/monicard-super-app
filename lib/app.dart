@@ -53,13 +53,7 @@ class MoniCardApp extends StatelessWidget {
               padding: const EdgeInsets.only(left: 16),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: c.isHome
-                    ? const BrandMark(size: 36)
-                    : OneCircleButton(
-                        icon: Icons.arrow_back,
-                        tooltip: c.i18n.t('back'),
-                        onPressed: c.back,
-                      ),
+                child: _LeadingSwitch(controller: c),
               ),
             ),
             title: const SizedBox.shrink(),
@@ -80,7 +74,7 @@ class MoniCardApp extends StatelessWidget {
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 720),
-              child: _Router(controller: c),
+              child: _RouteSwitcher(controller: c),
             ),
           ),
         ),
@@ -286,6 +280,7 @@ Future<void> showConnectSheet(BuildContext context, AppController c) {
                     icon: Icons.bluetooth_searching,
                     color: McTint.display,
                     title: s.t('startScan'),
+                    nav: OneRowNav.none,
                     onTap: c.connecting
                         ? null
                         : () {
@@ -298,6 +293,7 @@ Future<void> showConnectSheet(BuildContext context, AppController c) {
                       icon: Icons.link_off,
                       color: McTint.advanced,
                       title: s.t('disconnectAction'),
+                      nav: OneRowNav.none,
                       onTap: () {
                         Navigator.pop(context);
                         c.disconnect();
@@ -307,6 +303,7 @@ Future<void> showConnectSheet(BuildContext context, AppController c) {
                     icon: Icons.visibility_outlined,
                     color: McTint.identity,
                     title: s.t('previewContinue'),
+                    nav: OneRowNav.none,
                     onTap: () {
                       Navigator.pop(context);
                       c.enterPreview();
@@ -362,6 +359,93 @@ class _LocaleField extends StatelessWidget {
           },
         ),
       ],
+    );
+  }
+}
+
+class _LeadingSwitch extends StatelessWidget {
+  const _LeadingSwitch({required this.controller});
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final home = controller.isHome;
+    return SizedBox(
+      width: 40,
+      height: 40,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 340),
+        switchInCurve: Curves.easeOutBack,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          );
+          return FadeTransition(
+            opacity: curved,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.62, end: 1).animate(curved),
+              child: child,
+            ),
+          );
+        },
+        child: home
+            ? const BrandMark(key: ValueKey('mark'), size: 36)
+            : OneCircleButton(
+                key: const ValueKey('back'),
+                icon: Icons.arrow_back,
+                tooltip: controller.i18n.t('back'),
+                onPressed: controller.back,
+              ),
+      ),
+    );
+  }
+}
+
+class _RouteSwitcher extends StatelessWidget {
+  const _RouteSwitcher({required this.controller});
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 340),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (current, previous) {
+        return Stack(
+          fit: StackFit.passthrough,
+          alignment: Alignment.topCenter,
+          children: [
+            ...previous,
+            if (current != null) current,
+          ],
+        );
+      },
+      transitionBuilder: (child, animation) {
+        final outgoing = animation.status == AnimationStatus.reverse;
+        final forward = controller.navForward;
+        final begin = forward
+            ? (outgoing ? const Offset(-0.08, 0) : const Offset(0.16, 0))
+            : (outgoing ? const Offset(0.16, 0) : const Offset(-0.08, 0));
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return ClipRect(
+          child: SlideTransition(
+            position: Tween<Offset>(begin: begin, end: Offset.zero).animate(curved),
+            child: FadeTransition(opacity: curved, child: child),
+          ),
+        );
+      },
+      child: KeyedSubtree(
+        key: ValueKey(controller.route),
+        child: _Router(controller: controller),
+      ),
     );
   }
 }
@@ -514,12 +598,14 @@ class _HomePage extends StatelessWidget {
                   color: McTint.display,
                   title: s.t('startScan'),
                   subtitle: s.t('tapToConnect'),
+                  nav: OneRowNav.sheet,
                   onTap: () => showConnectSheet(context, controller),
                 ),
                 OneRow(
                   icon: Icons.visibility_outlined,
                   color: McTint.identity,
                   title: s.t('previewContinue'),
+                  nav: OneRowNav.none,
                   onTap: controller.enterPreview,
                 ),
               ],
@@ -1823,7 +1909,7 @@ class _SettingsPage extends StatelessWidget {
                 color: McColors.danger,
                 title: s.t('forgetDevice'),
                 onTap: controller.forget,
-                trailing: const SizedBox.shrink(),
+                nav: OneRowNav.none,
               ),
             ],
           ),

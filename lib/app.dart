@@ -429,7 +429,7 @@ class _LeadingSwitch extends StatelessWidget {
 const _kNavDuration = Duration(milliseconds: 300);
 
 class _RouteSwitcher extends StatefulWidget {
-  const _RouteSwitcher({required this.controller});
+  const _RouteSwitcher({super.key, required this.controller});
   final AppController controller;
 
   @override

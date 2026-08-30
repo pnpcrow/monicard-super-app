@@ -875,8 +875,8 @@ class _HomePage extends StatelessWidget {
                   color: McTint.device,
                   title: s.t('deviceInfo'),
                   subtitle: [
-                    if (d.battery != null) '${s.t('battery')} ${d.battery}%',
-                    if (d.storage != null) d.storage,
+                    if (d?.battery != null) '${s.t('battery')} ${d!.battery}%',
+                    if (d?.storage != null) d!.storage,
                     s.t('deviceInfoDesc'),
                   ].join(' · '),
                   onTap: () => controller.go('device-info'),

@@ -74,7 +74,19 @@ class MoniCardApp extends StatelessWidget {
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 720),
-              child: _RouteSwitcher(controller: c),
+              child: c.isHome && c.isSavedOffline
+                  ? HoloBackdrop(
+                      child: kIsWeb
+                          ? _UnlinkedHome(
+                              controller: c,
+                              savedOffline: true,
+                            )
+                          : _DisconnectedHome(controller: c),
+                    )
+                  : _RouteSwitcher(
+                      key: ValueKey('nav-${c.showFeatureHome}'),
+                      controller: c,
+                    ),
             ),
           ),
         ),

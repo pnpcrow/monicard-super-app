@@ -107,13 +107,18 @@ class _ConnectionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = controller.device;
-    final online = controller.ble.connected;
+    final online = controller.bleLive;
     final connecting = controller.connecting;
+    final preview = controller.previewDevice;
     final label = connecting
         ? controller.i18n.t('reconnecting')
+        : online
+        ? (d?.name ?? controller.i18n.t('passName'))
+        : preview
+        ? controller.i18n.t('previewDeviceName')
         : d == null
         ? controller.i18n.t('notConnected')
-        : (online ? d.name : controller.i18n.t('savedOffline'));
+        : controller.i18n.t('savedOffline');
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Material(
@@ -664,7 +669,12 @@ class _Router extends StatelessWidget {
       case 'docs':
         return _DocsPage(controller: controller);
       default:
-        return _HomePage(controller: controller);
+        return _HomePage(
+          key: ValueKey(
+            'home-${controller.showFeatureHome}-${controller.hasSavedDevice}',
+          ),
+          controller: controller,
+        );
     }
   }
 }
@@ -719,193 +729,226 @@ class McCard extends StatelessWidget {
 }
 
 class _HomePage extends StatelessWidget {
-  const _HomePage({required this.controller});
+  const _HomePage({super.key, required this.controller});
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.watch<AppController>();
+    final savedOffline = c.hasSavedDevice && !c.bleLive && !c.previewDevice;
+    if (!kIsWeb && savedOffline) {
+      return HoloBackdrop(child: _DisconnectedHome(controller: c));
+    }
+    if (!c.showFeatureHome) {
+      return HoloBackdrop(
+        child: _UnlinkedHome(
+          controller: c,
+          savedOffline: savedOffline,
+        ),
+      );
+    }
+    return HoloBackdrop(child: _LinkedHome(controller: c));
+  }
+}
+
+class _UnlinkedHome extends StatelessWidget {
+  const _UnlinkedHome({
+    required this.controller,
+    required this.savedOffline,
+  });
+  final AppController controller;
+  final bool savedOffline;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = controller.i18n;
+    final d = controller.device;
+    return ListView(
+      key: const PageStorageKey<String>('home-unlinked'),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
+      children: [
+        OneUiTitle(
+          savedOffline ? (d?.name ?? s.t('passName')) : s.t('passName'),
+          subtitle: savedOffline ? s.t('savedOffline') : s.t('slogan'),
+        ),
+        const DeviceHero(online: false),
+        const SizedBox(height: 16),
+        OneGroup(
+          children: [
+            OneRow(
+              icon: Icons.bluetooth_searching,
+              color: McTint.display,
+              title: s.t('startScan'),
+              subtitle: savedOffline
+                  ? s.t('quickConnectHint', {'name': d?.name ?? 'MoniCard'})
+                  : s.t('tapToConnect'),
+              nav: OneRowNav.sheet,
+              onTap: () => showConnectSheet(context, controller),
+            ),
+            OneRow(
+              icon: Icons.visibility_outlined,
+              color: McTint.identity,
+              title: s.t('previewContinue'),
+              nav: OneRowNav.none,
+              onTap: controller.enterPreview,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _LinkedHome extends StatelessWidget {
+  const _LinkedHome({required this.controller});
   final AppController controller;
 
   @override
   Widget build(BuildContext context) {
     final s = controller.i18n;
     final d = controller.device;
-    final online = controller.ble.connected;
-    final preview = controller.previewDevice;
-    final savedOffline = controller.hasSavedDevice && !online && !preview;
-    final showMenus = online || preview;
-    final waiting = !kIsWeb && savedOffline;
-    return HoloBackdrop(
-      child: waiting
-          ? _DisconnectedHome(controller: controller)
-          : ListView(
-              key: const PageStorageKey<String>('home'),
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
-              children: [
-          OneUiTitle(
-            online
-                ? (d?.name ?? s.t('passName'))
-                : savedOffline
-                    ? (d?.name ?? s.t('passName'))
-                    : s.t('passName'),
-            subtitle: online
-                ? [
-                    s.t('connected'),
-                    if (d?.battery != null) '${d!.battery}%',
-                    d?.firmwareVersion,
-                  ].whereType<String>().join('  ·  ')
-                : savedOffline
-                    ? s.t('savedOffline')
-                    : s.t('slogan'),
-          ),
-          DeviceHero(online: online),
+    final online = controller.bleLive;
+    return ListView(
+      key: const PageStorageKey<String>('home-linked'),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
+      children: [
+        OneUiTitle(
+          d?.name ?? s.t('passName'),
+          subtitle: online
+              ? [
+                  s.t('connected'),
+                  if (d?.battery != null) '${d!.battery}%',
+                  d?.firmwareVersion,
+                ].whereType<String>().join('  ·  ')
+              : s.t('previewBanner'),
+        ),
+        DeviceHero(online: online),
+        const SizedBox(height: 8),
+        if (controller.previewDevice) ...[
           const SizedBox(height: 8),
-          if (preview) ...[
-            const SizedBox(height: 8),
-            OneGroup(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
-                  child: Text(
-                    s.t('previewBanner'),
-                    style: const TextStyle(
-                      height: 1.45,
-                      color: McColors.muted,
-                      fontSize: 13,
-                    ),
+          OneGroup(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+                child: Text(
+                  s.t('previewBanner'),
+                  style: const TextStyle(
+                    height: 1.45,
+                    color: McColors.muted,
+                    fontSize: 13,
                   ),
                 ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 16),
-          if (!showMenus)
-            OneGroup(
-              children: [
-                OneRow(
-                  icon: Icons.bluetooth_searching,
-                  color: McTint.display,
-                  title: s.t('startScan'),
-                  subtitle: savedOffline
-                      ? s.t('quickConnectHint', {'name': d?.name ?? 'MoniCard'})
-                      : s.t('tapToConnect'),
-                  nav: OneRowNav.sheet,
-                  onTap: () => showConnectSheet(context, controller),
-                ),
-                OneRow(
-                  icon: Icons.visibility_outlined,
-                  color: McTint.identity,
-                  title: s.t('previewContinue'),
-                  nav: OneRowNav.none,
-                  onTap: controller.enterPreview,
-                ),
-              ],
-            )
-          else ...[
-            _SectionLabel(s.t('sectionDisplay')),
-            OneGroup(
-              children: [
-                OneRow(
-                  icon: Icons.image_outlined,
-                  color: McTint.display,
-                  title: s.t('image'),
-                  subtitle: s.t('imageDesc'),
-                  onTap: () => controller.go('media-image'),
-                ),
-                OneRow(
-                  icon: Icons.animation,
-                  color: McTint.display,
-                  title: s.t('animation'),
-                  subtitle: s.t('animationDesc'),
-                  onTap: () => controller.go('media-animation'),
-                ),
-                OneRow(
-                  icon: Icons.view_carousel_outlined,
-                  color: McTint.display,
-                  title: s.t('carousel'),
-                  subtitle: s.t('carouselDesc'),
-                  onTap: () => controller.go('carousel'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _SectionLabel(s.t('sectionIdentity')),
-            OneGroup(
-              children: [
-                OneRow(
-                  icon: Icons.badge_outlined,
-                  color: McTint.identity,
-                  title: s.t('profile'),
-                  subtitle: s.t('profileDesc'),
-                  onTap: () => controller.go('card'),
-                ),
-                OneRow(
-                  icon: Icons.sell_outlined,
-                  color: McTint.identity,
-                  title: s.t('tags'),
-                  subtitle: s.t('tagsDesc'),
-                  onTap: () => controller.go('tags'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _SectionLabel(s.t('sectionInbox')),
-            OneGroup(
-              children: [
-                OneRow(
-                  icon: Icons.mail_outlined,
-                  color: McTint.inbox,
-                  title: s.t('receivedCards'),
-                  subtitle: controller.cards.isEmpty
-                      ? s.t('receivedCardsDesc')
-                      : '${controller.cards.length}',
-                  onTap: () => controller.go('received-cards'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _SectionLabel(s.t('sectionDevice')),
-            OneGroup(
-              children: [
-                OneRow(
-                  icon: Icons.tune,
-                  color: McTint.device,
-                  title: s.t('deviceControl'),
-                  subtitle: s.t('deviceControlDesc'),
-                  onTap: () => controller.go('device-settings'),
-                ),
-                OneRow(
-                  icon: Icons.info_outline,
-                  color: McTint.device,
-                  title: s.t('deviceInfo'),
-                  subtitle: [
-                    if (d?.battery != null) '${s.t('battery')} ${d!.battery}%',
-                    if (d?.storage != null) d!.storage,
-                    s.t('deviceInfoDesc'),
-                  ].join(' · '),
-                  onTap: () => controller.go('device-info'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _SectionLabel(s.t('sectionAdvanced')),
-            OneGroup(
-              children: [
-                OneRow(
-                  icon: Icons.swap_vert,
-                  color: McTint.advanced,
-                  title: s.t('fileTransfer'),
-                  subtitle: s.t('fileTransferDesc'),
-                  onTap: () => controller.go('file-transfer'),
-                ),
-                OneRow(
-                  icon: Icons.system_update_alt,
-                  color: McTint.advanced,
-                  title: s.t('otaUpdate'),
-                  subtitle: s.t('otaUpdateDesc'),
-                  onTap: () => controller.go('ota-update'),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ],
-      ),
+        const SizedBox(height: 16),
+        _SectionLabel(s.t('sectionDisplay')),
+        OneGroup(
+          children: [
+            OneRow(
+              icon: Icons.image_outlined,
+              color: McTint.display,
+              title: s.t('image'),
+              subtitle: s.t('imageDesc'),
+              onTap: () => controller.go('media-image'),
+            ),
+            OneRow(
+              icon: Icons.animation,
+              color: McTint.display,
+              title: s.t('animation'),
+              subtitle: s.t('animationDesc'),
+              onTap: () => controller.go('media-animation'),
+            ),
+            OneRow(
+              icon: Icons.view_carousel_outlined,
+              color: McTint.display,
+              title: s.t('carousel'),
+              subtitle: s.t('carouselDesc'),
+              onTap: () => controller.go('carousel'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        _SectionLabel(s.t('sectionIdentity')),
+        OneGroup(
+          children: [
+            OneRow(
+              icon: Icons.badge_outlined,
+              color: McTint.identity,
+              title: s.t('profile'),
+              subtitle: s.t('profileDesc'),
+              onTap: () => controller.go('card'),
+            ),
+            OneRow(
+              icon: Icons.sell_outlined,
+              color: McTint.identity,
+              title: s.t('tags'),
+              subtitle: s.t('tagsDesc'),
+              onTap: () => controller.go('tags'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        _SectionLabel(s.t('sectionInbox')),
+        OneGroup(
+          children: [
+            OneRow(
+              icon: Icons.mail_outlined,
+              color: McTint.inbox,
+              title: s.t('receivedCards'),
+              subtitle: controller.cards.isEmpty
+                  ? s.t('receivedCardsDesc')
+                  : '${controller.cards.length}',
+              onTap: () => controller.go('received-cards'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        _SectionLabel(s.t('sectionDevice')),
+        OneGroup(
+          children: [
+            OneRow(
+              icon: Icons.tune,
+              color: McTint.device,
+              title: s.t('deviceControl'),
+              subtitle: s.t('deviceControlDesc'),
+              onTap: () => controller.go('device-settings'),
+            ),
+            OneRow(
+              icon: Icons.info_outline,
+              color: McTint.device,
+              title: s.t('deviceInfo'),
+              subtitle: [
+                if (d?.battery != null) '${s.t('battery')} ${d!.battery}%',
+                if (d?.storage != null) d!.storage,
+                s.t('deviceInfoDesc'),
+              ].join(' · '),
+              onTap: () => controller.go('device-info'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        _SectionLabel(s.t('sectionAdvanced')),
+        OneGroup(
+          children: [
+            OneRow(
+              icon: Icons.swap_vert,
+              color: McTint.advanced,
+              title: s.t('fileTransfer'),
+              subtitle: s.t('fileTransferDesc'),
+              onTap: () => controller.go('file-transfer'),
+            ),
+            OneRow(
+              icon: Icons.system_update_alt,
+              color: McTint.advanced,
+              title: s.t('otaUpdate'),
+              subtitle: s.t('otaUpdateDesc'),
+              onTap: () => controller.go('ota-update'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

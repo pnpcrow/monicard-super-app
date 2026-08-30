@@ -208,6 +208,17 @@ class AppController extends ChangeNotifier {
   bool get hasSavedDevice =>
       device != null && device!.id != null && device!.id != 'preview';
 
+  /// GATT is up. Preview is not a live radio link.
+  bool get bleLive => ble.connected;
+
+  /// Feature menus (image/animation/etc). Web must re-select the device
+  /// every session, so a saved-but-disconnected card never counts.
+  bool get showFeatureHome {
+    if (ble.connected) return true;
+    if (previewDevice && !hasSavedDevice) return true;
+    return false;
+  }
+
   Future<void> _autoReconnect() async {
     if (kIsWeb) return;
     if (!hasSavedDevice || ble.connected || connecting) return;

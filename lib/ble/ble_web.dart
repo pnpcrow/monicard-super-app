@@ -83,8 +83,17 @@ class WebBle implements MoniCardBle {
   int? _rxCategory;
   int _rxExpectedLength = 0;
 
+  bool _radioUp = false;
   @override
-  bool connected = false;
+  bool get connected {
+    final gatt = _device?.gatt;
+    if (gatt != null) {
+      try {
+        return gatt.connected;
+      } catch (_) {}
+    }
+    return _radioUp;
+  }
   @override
   String? deviceId;
   @override
@@ -189,10 +198,9 @@ class WebBle implements MoniCardBle {
     deviceId = selected.id;
     deviceName = (selected.name == null || selected.name!.isEmpty) ? 'MoniCard' : selected.name;
     _disconnectFn = ((JSAny _) {
-      if (connected) {
-        _clear(disconnectGatt: false);
-        onDisconnect?.call();
-      }
+      final was = _radioUp;
+      _clear(disconnectGatt: false);
+      if (was) onDisconnect?.call();
     }).toJS;
     selected.addEventListener('gattserverdisconnected', _disconnectFn!);
 
@@ -238,7 +246,7 @@ class WebBle implements MoniCardBle {
       }).toJS;
       dataChar.addEventListener('characteristicvaluechanged', _notifyFn!);
     }
-    connected = true;
+    _radioUp = true;
     onConnect?.call();
   }
 
@@ -396,7 +404,7 @@ class WebBle implements MoniCardBle {
     _disconnectFn = null;
     _device = null;
     _dataChar = null;
-    connected = false;
+    _radioUp = false;
     _queue = Future.value();
     _rxParts.clear();
     _rxCategory = null;

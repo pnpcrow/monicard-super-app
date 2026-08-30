@@ -107,18 +107,17 @@ class _ConnectionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = controller.device;
-    final online = controller.bleLive;
     final connecting = controller.connecting;
-    final preview = controller.previewDevice;
     final label = connecting
         ? controller.i18n.t('reconnecting')
-        : online
+        : controller.bleLive
         ? (d?.name ?? controller.i18n.t('passName'))
-        : preview
+        : controller.previewDevice
         ? controller.i18n.t('previewDeviceName')
-        : d == null
-        ? controller.i18n.t('notConnected')
-        : controller.i18n.t('savedOffline');
+        : controller.isSavedOffline
+        ? controller.i18n.t('savedOffline')
+        : controller.i18n.t('notConnected');
+    final online = controller.bleLive;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Material(
@@ -671,7 +670,7 @@ class _Router extends StatelessWidget {
       default:
         return _HomePage(
           key: ValueKey(
-            'home-${controller.showFeatureHome}-${controller.hasSavedDevice}',
+            'home-${controller.isSavedOffline}-${controller.showFeatureHome}',
           ),
           controller: controller,
         );
@@ -735,19 +734,20 @@ class _HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.watch<AppController>();
-    final savedOffline = c.hasSavedDevice && !c.bleLive && !c.previewDevice;
-    if (!kIsWeb && savedOffline) {
+    if (c.isSavedOffline) {
+      if (kIsWeb) {
+        return HoloBackdrop(
+          child: _UnlinkedHome(controller: c, savedOffline: true),
+        );
+      }
       return HoloBackdrop(child: _DisconnectedHome(controller: c));
     }
-    if (!c.showFeatureHome) {
-      return HoloBackdrop(
-        child: _UnlinkedHome(
-          controller: c,
-          savedOffline: savedOffline,
-        ),
-      );
+    if (c.showFeatureHome) {
+      return HoloBackdrop(child: _LinkedHome(controller: c));
     }
-    return HoloBackdrop(child: _LinkedHome(controller: c));
+    return HoloBackdrop(
+      child: _UnlinkedHome(controller: c, savedOffline: false),
+    );
   }
 }
 

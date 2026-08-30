@@ -208,16 +208,16 @@ class AppController extends ChangeNotifier {
   bool get hasSavedDevice =>
       device != null && device!.id != null && device!.id != 'preview';
 
-  /// GATT is up. Preview is not a live radio link.
   bool get bleLive => ble.connected;
 
-  /// Feature menus (image/animation/etc). Web must re-select the device
-  /// every session, so a saved-but-disconnected card never counts.
-  bool get showFeatureHome {
-    if (ble.connected) return true;
-    if (previewDevice && !hasSavedDevice) return true;
-    return false;
-  }
+  /// Same condition as the connection-chip "저장됨, 현재 연결 안 됨" branch:
+  /// a remembered device exists, it is not preview, and GATT is not up.
+  bool get isSavedOffline =>
+      device != null && !previewDevice && !ble.connected;
+
+  /// Feature menus. Never true when the chip would say saved-offline.
+  bool get showFeatureHome =>
+      !isSavedOffline && (ble.connected || previewDevice);
 
   Future<void> _autoReconnect() async {
     if (kIsWeb) return;

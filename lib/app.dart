@@ -910,7 +910,7 @@ class _DisconnectedHome extends StatelessWidget {
     final d = controller.device;
     final connecting = controller.connecting;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
       child: Column(
         children: [
           OneUiTitle(
@@ -918,49 +918,45 @@ class _DisconnectedHome extends StatelessWidget {
             subtitle: connecting ? s.t('reconnecting') : s.t('savedOffline'),
           ),
           Expanded(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 420),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    DeviceHero(online: false),
-                    Positioned(
-                      left: 36,
-                      right: 36,
-                      bottom: 10,
-                      child: ElevatedButton.icon(
-                        onPressed: connecting
-                            ? null
-                            : () => reconnectSavedDevice(context, controller),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: McColors.panel,
-                          foregroundColor: McColors.text,
-                          disabledBackgroundColor: McColors.panel2,
-                          disabledForegroundColor: McColors.muted,
-                          minimumSize: const Size(0, 48),
-                          elevation: 8,
-                          shadowColor: Colors.black54,
-                        ),
-                        icon: connecting
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.bluetooth, size: 20),
-                        label: Text(
-                          connecting
-                              ? s.t('reconnecting')
-                              : s.t('quickConnect'),
-                        ),
-                      ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: DeviceHero(
+                      online: false,
+                      mascot: const Mascot.peek(size: 92),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+                Text(
+                  s.t('quickConnectHint', {'name': d?.name ?? 'MoniCard'}),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: McColors.muted,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: connecting
+                        ? null
+                        : () => reconnectSavedDevice(context, controller),
+                    icon: connecting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.bluetooth, size: 20),
+                    label: Text(
+                      connecting ? s.t('reconnecting') : s.t('quickConnect'),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

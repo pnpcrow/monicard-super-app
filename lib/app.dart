@@ -374,19 +374,18 @@ class _LeadingSwitch extends StatelessWidget {
       width: 40,
       height: 40,
       child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 340),
-        switchInCurve: Curves.easeOutBack,
-        switchOutCurve: Curves.easeInCubic,
+        duration: _kNavDuration,
+        switchInCurve: Curves.easeInOutCubic,
+        switchOutCurve: Curves.easeInOutCubic,
         transitionBuilder: (child, animation) {
           final curved = CurvedAnimation(
             parent: animation,
-            curve: Curves.easeOutCubic,
-            reverseCurve: Curves.easeInCubic,
+            curve: Curves.easeInOutCubic,
           );
           return FadeTransition(
             opacity: curved,
             child: ScaleTransition(
-              scale: Tween<double>(begin: 0.62, end: 1).animate(curved),
+              scale: Tween<double>(begin: 0.82, end: 1).animate(curved),
               child: child,
             ),
           );
@@ -404,59 +403,183 @@ class _LeadingSwitch extends StatelessWidget {
   }
 }
 
-class _RouteSwitcher extends StatelessWidget {
+const _kNavDuration = Duration(milliseconds: 300);
+
+class _RouteSwitcher extends StatefulWidget {
   const _RouteSwitcher({required this.controller});
   final AppController controller;
 
   @override
+  State<_RouteSwitcher> createState() => _RouteSwitcherState();
+}
+
+class _RouteSwitcherState extends State<_RouteSwitcher> {
+  late List<String> _alive;
+  String? _incoming;
+  String? _exiting;
+
+  @override
+  void initState() {
+    super.initState();
+    _alive = List<String>.of(widget.controller.navigationStack);
+  }
+
+  @override
+  void didUpdateWidget(covariant _RouteSwitcher oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = List<String>.of(widget.controller.navigationStack);
+    if (listEquals(next, _alive)) return;
+    if (widget.controller.navForward &&
+        (next.length > _alive.length || next.last != _alive.last)) {
+      _incoming = next.last;
+      _exiting = null;
+    } else {
+      _exiting = _alive.isEmpty ? null : _alive.last;
+      _incoming = null;
+    }
+    _alive = next;
+  }
+
+  void _finishIn(String route) {
+    if (!mounted || _incoming != route) return;
+    setState(() => _incoming = null);
+  }
+
+  void _finishOut(String route) {
+    if (!mounted || _exiting != route) return;
+    setState(() => _exiting = null);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 340),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      layoutBuilder: (current, previous) {
-        return Stack(
-          fit: StackFit.passthrough,
-          alignment: Alignment.topCenter,
-          children: [
-            ...previous,
-            if (current != null) current,
-          ],
-        );
-      },
-      transitionBuilder: (child, animation) {
-        final outgoing = animation.status == AnimationStatus.reverse;
-        final forward = controller.navForward;
-        final begin = forward
-            ? (outgoing ? const Offset(-0.08, 0) : const Offset(0.16, 0))
-            : (outgoing ? const Offset(0.16, 0) : const Offset(-0.08, 0));
-        final curved = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-          reverseCurve: Curves.easeInCubic,
-        );
-        return ClipRect(
-          child: SlideTransition(
-            position: Tween<Offset>(begin: begin, end: Offset.zero).animate(curved),
-            child: FadeTransition(opacity: curved, child: child),
+    final top = _alive.isEmpty ? 'home' : _alive.last;
+    final under = _alive.length >= 2 ? _alive[_alive.length - 2] : null;
+    final layers = <String>[
+      for (final route in _alive) route,
+      if (_exiting != null && !_alive.contains(_exiting)) _exiting!,
+    ];
+    return ClipRect(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          for (final route in layers)
+            Positioned.fill(
+              key: ValueKey(route),
+              child: _RouteLayer(
+                route: route,
+                controller: widget.controller,
+                hidden: route != top &&
+                    route != _exiting &&
+                    !(_incoming != null && route == under),
+                slide: route == _incoming
+                    ? _RouteSlide.incoming
+                    : route == _exiting
+                        ? _RouteSlide.outgoing
+                        : _RouteSlide.none,
+                onInComplete: () => _finishIn(route),
+                onOutComplete: () => _finishOut(route),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _RouteSlide { none, incoming, outgoing }
+
+class _RouteLayer extends StatefulWidget {
+  const _RouteLayer({
+    required this.route,
+    required this.controller,
+    required this.hidden,
+    required this.slide,
+    required this.onInComplete,
+    required this.onOutComplete,
+  });
+
+  final String route;
+  final AppController controller;
+  final bool hidden;
+  final _RouteSlide slide;
+  final VoidCallback onInComplete;
+  final VoidCallback onOutComplete;
+
+  @override
+  State<_RouteLayer> createState() => _RouteLayerState();
+}
+
+class _RouteLayerState extends State<_RouteLayer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(vsync: this, duration: _kNavDuration);
+    if (widget.slide == _RouteSlide.incoming) {
+      _anim.forward(from: 0).whenComplete(() {
+        if (mounted && widget.slide == _RouteSlide.incoming && _anim.isCompleted) {
+          widget.onInComplete();
+        }
+      });
+    } else {
+      _anim.value = 1;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _RouteLayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.slide == _RouteSlide.outgoing &&
+        oldWidget.slide != _RouteSlide.outgoing) {
+      _anim.reverse().whenComplete(() {
+        if (mounted && widget.slide == _RouteSlide.outgoing && _anim.isDismissed) {
+          widget.onOutComplete();
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final curved = CurvedAnimation(parent: _anim, curve: Curves.easeInOutCubic);
+    final page = TickerMode(
+      enabled: !widget.hidden,
+      child: _Router(controller: widget.controller, route: widget.route),
+    );
+    return Offstage(
+      offstage: widget.hidden,
+      child: IgnorePointer(
+        ignoring: widget.hidden || widget.slide == _RouteSlide.outgoing,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0.22, 0),
+            end: Offset.zero,
+          ).animate(curved),
+          child: FadeTransition(
+            opacity: Tween<double>(begin: 0.35, end: 1).animate(curved),
+            child: page,
           ),
-        );
-      },
-      child: KeyedSubtree(
-        key: ValueKey(controller.route),
-        child: _Router(controller: controller),
+        ),
       ),
     );
   }
 }
 
 class _Router extends StatelessWidget {
-  const _Router({required this.controller});
+  const _Router({required this.controller, required this.route});
   final AppController controller;
+  final String route;
 
   @override
   Widget build(BuildContext context) {
-    final route = controller.route;
     if (route.startsWith('card-detail/')) {
       return _CardDetail(
         controller: controller,
@@ -509,7 +632,7 @@ class _Page extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      key: ValueKey('${controller.route}-$title'),
+      key: PageStorageKey<String>('page-$title'),
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
       children: [OneUiTitle(title), const SizedBox(height: 8), child],
     );
@@ -555,6 +678,7 @@ class _HomePage extends StatelessWidget {
     final d = controller.device;
     return HoloBackdrop(
       child: ListView(
+        key: const PageStorageKey<String>('home'),
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
         children: [
           OneUiTitle(
@@ -1869,6 +1993,7 @@ class _SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = controller.i18n;
     return ListView(
+      key: const PageStorageKey<String>('settings'),
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
       children: [
         OneUiTitle(s.t('appSettings')),

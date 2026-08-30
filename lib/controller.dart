@@ -239,6 +239,8 @@ class AppController extends ChangeNotifier {
 
   String get route => _stack.last;
 
+  List<String> get navigationStack => List<String>.unmodifiable(_stack);
+
   bool get isHome => _stack.length <= 1;
 
   bool get inSettingsBranch =>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/monicard-super-app/">
+  <meta charset="UTF-8">
+  <meta content="IE=edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="MoniCard Super — Android and Web companion for MoniCard hardware">
+  <meta name="theme-color" content="#08060F">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="MoniCard Super App">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png"/>
+  <title>MoniCard Super App</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #08060F;
+      color: #f7f8fb;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+    }
+    #flutter-host {
+      position: fixed;
+      inset: 0;
+    }
+    #flutter-splash {
+      position: absolute;
+      inset: 0;
+      z-index: 9999;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 32px;
+      background:
+        radial-gradient(ellipse 70% 50% at 50% 42%, rgba(39,215,255,0.18), transparent 62%),
+        radial-gradient(ellipse 40% 30% at 50% 58%, rgba(247,237,22,0.10), transparent 70%),
+        #08060F;
+    }
+    #flutter-splash .brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    #flutter-splash .icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 20px;
+      box-shadow: 0 8px 28px rgba(247,237,22,0.22);
+    }
+    #flutter-splash .product {
+      width: auto;
+      height: auto;
+      max-height: min(260px, 38vh);
+      max-width: min(140px, 42vw);
+      margin: 8px 0 4px;
+      object-fit: contain;
+      filter: drop-shadow(0 18px 40px rgba(39,215,255,0.28));
+    }
+    #flutter-splash h1 {
+      margin: 8px 0 4px;
+      font-size: 32px;
+      letter-spacing: -0.04em;
+    }
+    #flutter-splash p { color: #9da6b5; margin: 0; }
+  </style>
+</head>
+<body>
+  <div id="flutter-host">
+    <div id="flutter-splash">
+      <div class="brand">
+        <img class="icon" src="splash/icon.png" alt="MoniCard">
+        <img class="product" src="splash/product.png" alt="MoniCard device">
+        <h1>MoniCard Super App</h1>
+      </div>
+    </div>
+  </div>
+  <script>
+    function hideSplash() {
+      var splash = document.getElementById('flutter-splash');
+      if (splash) splash.remove();
+    }
+    window.addEventListener('flutter-first-frame', hideSplash);
+    setTimeout(hideSplash, 8000);
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

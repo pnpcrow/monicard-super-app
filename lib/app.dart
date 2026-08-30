@@ -471,6 +471,7 @@ class _RouteSwitcherState extends State<_RouteSwitcher> {
                 hidden: route != top &&
                     route != _exiting &&
                     !(_incoming != null && route == under),
+                recede: _incoming != null && route == under,
                 slide: route == _incoming
                     ? _RouteSlide.incoming
                     : route == _exiting
@@ -493,6 +494,7 @@ class _RouteLayer extends StatefulWidget {
     required this.route,
     required this.controller,
     required this.hidden,
+    required this.recede,
     required this.slide,
     required this.onInComplete,
     required this.onOutComplete,
@@ -501,6 +503,7 @@ class _RouteLayer extends StatefulWidget {
   final String route;
   final AppController controller;
   final bool hidden;
+  final bool recede;
   final _RouteSlide slide;
   final VoidCallback onInComplete;
   final VoidCallback onOutComplete;
@@ -510,21 +513,28 @@ class _RouteLayer extends StatefulWidget {
 }
 
 class _RouteLayerState extends State<_RouteLayer>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _anim;
+    with TickerProviderStateMixin {
+  late final AnimationController _slide;
+  late final AnimationController _recede;
 
   @override
   void initState() {
     super.initState();
-    _anim = AnimationController(vsync: this, duration: _kNavDuration);
+    _slide = AnimationController(vsync: this, duration: _kNavDuration);
+    _recede = AnimationController(vsync: this, duration: _kNavDuration);
     if (widget.slide == _RouteSlide.incoming) {
-      _anim.forward(from: 0).whenComplete(() {
-        if (mounted && widget.slide == _RouteSlide.incoming && _anim.isCompleted) {
+      _slide.forward(from: 0).whenComplete(() {
+        if (mounted &&
+            widget.slide == _RouteSlide.incoming &&
+            _slide.isCompleted) {
           widget.onInComplete();
         }
       });
     } else {
-      _anim.value = 1;
+      _slide.value = 1;
+    }
+    if (widget.recede) {
+      _recede.forward(from: 0);
     }
   }
 
@@ -533,23 +543,42 @@ class _RouteLayerState extends State<_RouteLayer>
     super.didUpdateWidget(oldWidget);
     if (widget.slide == _RouteSlide.outgoing &&
         oldWidget.slide != _RouteSlide.outgoing) {
-      _anim.reverse().whenComplete(() {
-        if (mounted && widget.slide == _RouteSlide.outgoing && _anim.isDismissed) {
+      _slide.reverse().whenComplete(() {
+        if (mounted &&
+            widget.slide == _RouteSlide.outgoing &&
+            _slide.isDismissed) {
           widget.onOutComplete();
         }
       });
+    }
+    if (widget.hidden && !oldWidget.hidden) {
+      _recede.value = 1;
+    } else if (widget.recede && !oldWidget.recede) {
+      _recede.forward();
+    } else if (!widget.recede && oldWidget.recede && !widget.hidden) {
+      _recede.reverse();
     }
   }
 
   @override
   void dispose() {
-    _anim.dispose();
+    _slide.dispose();
+    _recede.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final curved = CurvedAnimation(parent: _anim, curve: Curves.easeInOutCubic);
+    final slideAnim = CurvedAnimation(
+      parent: _slide,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    final recedeAnim = CurvedAnimation(
+      parent: _recede,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
     final page = TickerMode(
       enabled: !widget.hidden,
       child: _Router(controller: widget.controller, route: widget.route),
@@ -560,11 +589,29 @@ class _RouteLayerState extends State<_RouteLayer>
         ignoring: widget.hidden || widget.slide == _RouteSlide.outgoing,
         child: SlideTransition(
           position: Tween<Offset>(
-            begin: const Offset(0.22, 0),
+            begin: const Offset(0.28, 0),
             end: Offset.zero,
-          ).animate(curved),
-          child: FadeTransition(
-            opacity: Tween<double>(begin: 0.35, end: 1).animate(curved),
+          ).animate(slideAnim),
+          child: AnimatedBuilder(
+            animation: recedeAnim,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(-28 * recedeAnim.value, 0),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ColoredBox(color: McColors.bg, child: child),
+                    IgnorePointer(
+                      child: ColoredBox(
+                        color: Colors.black.withValues(
+                          alpha: 0.24 * recedeAnim.value,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
             child: page,
           ),
         ),

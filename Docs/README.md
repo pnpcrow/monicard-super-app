@@ -6,6 +6,8 @@ This directory separates implementation guidance from protocol observations so f
 
 | Document | Purpose |
 |---|---|
+| [monicard-super-app-eli5-manual.pdf](monicard-super-app-eli5-manual.pdf) | First-time user manual (ELI5, Korean) |
+| [monicard-super-app-manual-spec.json](monicard-super-app-manual-spec.json) | Source spec for the user manual |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Runtime components, state flow, and trust boundaries |
 | [CLEAN_ROOM_IMPLEMENTATION.md](CLEAN_ROOM_IMPLEMENTATION.md) | Process for independent, auditable reimplementation |
 | [PROTOCOL_SPECIFICATION.md](PROTOCOL_SPECIFICATION.md) | BLE UUIDs, framing, commands, limits, and confidence levels |
@@ -13,7 +15,6 @@ This directory separates implementation guidance from protocol observations so f
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Setup, coding conventions, and release checklist |
 | [SECURITY.md](SECURITY.md) | Browser, API, BLE, and firmware safety considerations |
 | [LICENSES.md](LICENSES.md) | Direct dependencies and referenced SDKs |
-| [monicard-super-app-eli5-manual.pdf](monicard-super-app-eli5-manual.pdf) | First-time user manual (ELI5) |
 
 ## Documentation rule
 
